@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildMergedModels } from '../lib/model-merger.js'
+import { buildMergedModels } from '../src/model-merger.js'
 
 const SAMPLE_MODELS = [
   ['deepseek-ai/deepseek-v3.2', 'DeepSeek V3.2', 'S+', '73.1%', '128k', 'nvidia'],

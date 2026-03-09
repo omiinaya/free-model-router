@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyError, CircuitBreaker, rateLimitConfidence, ErrorType } from '../lib/error-classifier.js'
+import { classifyError, CircuitBreaker, rateLimitConfidence, ErrorType } from '../src/error-classifier.js'
 
 describe('classifyError', () => {
   it('classifies 429 as RATE_LIMITED', () => {

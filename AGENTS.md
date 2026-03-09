@@ -22,7 +22,7 @@ When releasing a new version, follow this exact process:
 2. **Version Bump**: Update version in `package.json` (e.g., `0.1.16` → `0.1.17`)
 3. **Commit ALL Changed Files**: `git add . && git commit -m "0.1.17"`
    - Always commit with just the version number as the message (e.g., "0.1.17")
-   - Include ALL modified files in the commit (bin/, lib/, test/, README.md, CHANGELOG.md, etc.)
+   - Include ALL modified files in the commit (bin/, src/, test/, README.md, CHANGELOG.md, etc.)
 4. **Push**: `git push origin main` — GitHub Actions will auto-publish to npm
 5. **Wait for npm Publish":
    ```bash
@@ -60,10 +60,10 @@ When releasing a new version, follow this exact process:
 ## Test Architecture
 
 - Tests live in `test/test.js` using Node.js built-in `node:test` + `node:assert` (zero deps)
-- Pure logic functions are in `lib/utils.js` (extracted from the main CLI for testability)
-- The main CLI (`bin/free-coding-models.js`) imports from `lib/utils.js`
-- If you add new pure logic (calculations, parsing, filtering), add it to `lib/utils.js` and write tests
-- If you modify existing logic in `lib/utils.js`, update the corresponding tests
+- Pure logic functions are in `src/utils.js` (extracted from the main CLI for testability)
+- The main CLI (`bin/free-coding-models.js`) imports from `src/utils.js`
+- If you add new pure logic (calculations, parsing, filtering), add it to `src/utils.js` and write tests
+- If you modify existing logic in `src/utils.js`, update the corresponding tests
 
 ### What's tested:
 - **sources.js data integrity** — model structure, valid tiers, no duplicates, count consistency

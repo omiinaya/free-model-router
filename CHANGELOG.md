@@ -2,6 +2,18 @@
 
 ---
 
+## 0.1.84
+
+### Changed
+
+- Refactored TUI overlays and key handling into `src/overlays.js` and `src/key-handler.js` to keep `bin/free-coding-models.js` lean.
+- Extracted OpenClaw integration into `src/openclaw.js` and aligned OpenCode flow with shared helpers.
+- Moved tier/origin filter modes into shared runtime state for clearer ownership.
+- Removed obsolete E/D tier-filter tips from the TUI footer and README.
+- Shortened Alibaba Cloud origin label in the TUI to avoid column drift.
+
+---
+
 ## 0.1.83
 
 ### Added
@@ -22,8 +34,6 @@
 - **Masked API Keys in Settings** -- hides middle parts of API keys in the `P` menu to prevent accidental exposure during screen sharing.
 - **Enhanced tmux support** -- auto-discovery of available ports for OpenCode sub-agent panes when running in a tmux session.
 - **Hardened Test Suite** -- expanded to 13 suites and 62+ verified test cases covering proxy logic, usage reading, and hotkey behavior.
-
----
 
 ## 0.1.82
 

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { loadUsageSnapshot, loadUsageMap, usageForModelId, usageForRow, SNAPSHOT_TTL_MS, CACHE_TTL_MS, clearUsageCache } from '../lib/usage-reader.js'
+import { loadUsageSnapshot, loadUsageMap, usageForModelId, usageForRow, SNAPSHOT_TTL_MS, CACHE_TTL_MS, clearUsageCache } from '../src/usage-reader.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

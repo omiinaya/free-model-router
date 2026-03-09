@@ -32,11 +32,11 @@ import {
   TIER_ORDER, VERDICT_ORDER, TIER_LETTER_MAP,
   scoreModelForTask, getTopRecommendations, TASK_TYPES, PRIORITY_TYPES, CONTEXT_BUDGETS,
   formatCtxWindow, labelFromId
-} from '../lib/utils.js'
+} from '../src/utils.js'
 import {
   _emptyProfileSettings, saveAsProfile, loadProfile, listProfiles,
   deleteProfile, getActiveProfileName, setActiveProfile
-} from '../lib/config.js'
+} from '../src/config.js'
 
 // ─── Helper: create a mock model result ──────────────────────────────────────
 // 📖 Builds a minimal result object matching the shape used by the main script
@@ -754,7 +754,7 @@ describe('CLI entry point sanity', () => {
   })
 
   it('imports from lib/utils.js', () => {
-    assert.ok(binContent.includes("from '../lib/utils.js'"), 'Should import lib/utils.js')
+    assert.ok(binContent.includes("from '../src/utils.js'"), 'Should import lib/utils.js')
   })
 })
 

@@ -441,17 +441,6 @@ free-coding-models --tier B     # Only B+, B (lightweight options)
 free-coding-models --tier C     # Only C (edge/minimal models)
 ```
 
-#### Dynamic tier filtering with E/D keys
-
-During runtime, use **E** and **D** keys to dynamically adjust the tier filter:
-
-- **E** (Elevate) — Show fewer, higher-tier models (cycle: All → S → A → B → C → All)
-- **D** (Descend) — Show more, lower-tier models (cycle: All → C → B → A → S → All)
-
-Current tier filter is shown in the header badge (e.g., `[Tier S]`)
-
----
-
 ## 📊 TUI Columns
 
 The main table displays one row per model with the following columns:

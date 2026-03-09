@@ -40,7 +40,7 @@
   },
   "files": [
     "bin/",
-    "lib/",
+    "src/",
     "sources.js",
     "patch-openclaw.js",
     "patch-openclaw-models.js",

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyThinkingBudget, compressContext } from '../lib/request-transformer.js'
+import { applyThinkingBudget, compressContext } from '../src/request-transformer.js'
 
 describe('applyThinkingBudget', () => {
   it('passthrough mode: leaves body unchanged', () => {

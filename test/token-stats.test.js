@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { TokenStats } from '../lib/token-stats.js'
+import { TokenStats } from '../src/token-stats.js'
 
 // ─── Temp dir helpers ─────────────────────────────────────────────────────────
 

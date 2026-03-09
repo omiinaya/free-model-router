@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { AccountManager } from '../lib/account-manager.js'
-import { getQuotaTelemetry, isKnownQuotaTelemetry } from '../lib/quota-capabilities.js'
+import { AccountManager } from '../src/account-manager.js'
+import { getQuotaTelemetry, isKnownQuotaTelemetry } from '../src/quota-capabilities.js'
 
 function makeAccounts(n) {
   return Array.from({ length: n }, (_, i) => ({

@@ -4,8 +4,8 @@ import http from 'node:http'
 import { mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { ProxyServer } from '../lib/proxy-server.js'
-import { parseLogLine } from '../lib/log-reader.js'
+import { ProxyServer } from '../src/proxy-server.js'
+import { parseLogLine } from '../src/log-reader.js'
 
 // Helper: create mock upstream API
 function createMockUpstream(responseBody, statusCode = 200, extraHeaders = {}) {

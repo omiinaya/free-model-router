@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, rmSync, writeFileSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { parseLogLine, loadRecentLogs } from '../lib/log-reader.js'
+import { parseLogLine, loadRecentLogs } from '../src/log-reader.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

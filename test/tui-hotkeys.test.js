@@ -15,7 +15,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { sortResults, getProxyStatusInfo } from '../lib/utils.js'
+import { sortResults, getProxyStatusInfo } from '../src/utils.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -18,7 +18,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mergeOcConfig } from '../lib/opencode-sync.js'
+import { mergeOcConfig } from '../src/opencode-sync.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
