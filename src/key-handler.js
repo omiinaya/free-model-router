@@ -1,6 +1,6 @@
 /**
  * @file key-handler.js
- * @description Factory for the main TUI keypress handler.
+ * @description Factory for the main TUI keypress handler and provider key-test model selection.
  *
  * @details
  *   This module encapsulates the full onKeyPress switch used by the TUI,
@@ -8,11 +8,93 @@
  *   OpenCode/OpenClaw launch actions. It also keeps the live key bindings
  *   aligned with the highlighted letters shown in the table headers.
  *
+ *   It also owns the "test key" model selection used by the Settings overlay.
+ *   Some providers expose models in `/v1/models` that are not actually callable
+ *   on the chat-completions endpoint. To avoid false negatives when a user
+ *   presses `T` in Settings, the helpers below discover candidate model IDs,
+ *   merge them with repo defaults, then probe several until one is accepted.
+ *
  *   → Functions:
+ *   - `buildProviderModelsUrl` — derive the matching `/models` endpoint when available
+ *   - `parseProviderModelIds` — extract model ids from an OpenAI-style `/models` payload
+ *   - `listProviderTestModels` — build an ordered candidate list for provider key verification
+ *   - `classifyProviderTestOutcome` — convert attempted HTTP codes into a settings badge state
  *   - `createKeyHandler` — returns the async keypress handler
  *
- * @exports { createKeyHandler }
+ * @exports { buildProviderModelsUrl, parseProviderModelIds, listProviderTestModels, classifyProviderTestOutcome, createKeyHandler }
  */
+
+// 📖 Some providers need an explicit probe model because the first catalog entry
+// 📖 is not guaranteed to be accepted by their chat endpoint.
+const PROVIDER_TEST_MODEL_OVERRIDES = {
+  sambanova: ['DeepSeek-V3-0324'],
+  nvidia: ['deepseek-ai/deepseek-v3.1-terminus', 'openai/gpt-oss-120b'],
+}
+
+/**
+ * 📖 buildProviderModelsUrl derives the matching `/models` endpoint for providers
+ * 📖 that expose an OpenAI-compatible model list next to `/chat/completions`.
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function buildProviderModelsUrl(url) {
+  if (typeof url !== 'string' || !url.includes('/chat/completions')) return null
+  return url.replace(/\/chat\/completions$/, '/models')
+}
+
+/**
+ * 📖 parseProviderModelIds extracts ids from a standard OpenAI-style `/models` response.
+ * 📖 Invalid payloads return an empty list so the key-test flow can safely fall back.
+ * @param {unknown} data
+ * @returns {string[]}
+ */
+export function parseProviderModelIds(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.data)) return []
+  return data.data
+    .map(entry => (entry && typeof entry.id === 'string') ? entry.id.trim() : '')
+    .filter(Boolean)
+}
+
+/**
+ * 📖 listProviderTestModels builds the ordered probe list used by the Settings `T` key.
+ * 📖 Order matters:
+ * 📖 1. provider-specific known-good overrides
+ * 📖 2. discovered `/models` ids that also exist in this repo
+ * 📖 3. all discovered `/models` ids
+ * 📖 4. repo static model ids as final fallback
+ * @param {string} providerKey
+ * @param {{ models?: Array<[string, string, string, string, string]> } | undefined} src
+ * @param {string[]} [discoveredModelIds=[]]
+ * @returns {string[]}
+ */
+export function listProviderTestModels(providerKey, src, discoveredModelIds = []) {
+  const staticModelIds = Array.isArray(src?.models) ? src.models.map(model => model[0]).filter(Boolean) : []
+  const staticModelSet = new Set(staticModelIds)
+  const preferredDiscoveredIds = discoveredModelIds.filter(modelId => staticModelSet.has(modelId))
+  const orderedCandidates = [
+    ...(PROVIDER_TEST_MODEL_OVERRIDES[providerKey] ?? []),
+    ...preferredDiscoveredIds,
+    ...discoveredModelIds,
+    ...staticModelIds,
+  ]
+  return [...new Set(orderedCandidates)]
+}
+
+/**
+ * 📖 classifyProviderTestOutcome maps attempted probe codes to a user-facing test result.
+ * 📖 This keeps Settings more honest than a binary success/fail badge:
+ * 📖 - `rate_limited` means the key is valid but the provider is currently throttling
+ * 📖 - `no_callable_model` means the provider responded, but none of the attempted models were callable
+ * @param {string[]} codes
+ * @returns {'ok'|'fail'|'rate_limited'|'no_callable_model'}
+ */
+export function classifyProviderTestOutcome(codes) {
+  if (codes.includes('200')) return 'ok'
+  if (codes.includes('401') || codes.includes('403')) return 'fail'
+  if (codes.length > 0 && codes.every(code => code === '429')) return 'rate_limited'
+  if (codes.length > 0 && codes.every(code => code === '404' || code === '410')) return 'no_callable_model'
+  return 'fail'
+}
 
 export function createKeyHandler(ctx) {
   const {
@@ -83,13 +165,45 @@ export function createKeyHandler(ctx) {
     const testKey = getApiKey(state.config, providerKey)
     if (!testKey) { state.settingsTestResults[providerKey] = 'fail'; return }
 
-    // 📖 Use the first model in the provider's list for the test ping
-    const testModel = src.models[0]?.[0]
-    if (!testModel) { state.settingsTestResults[providerKey] = 'fail'; return }
-
     state.settingsTestResults[providerKey] = 'pending'
-    const { code } = await ping(testKey, testModel, providerKey, src.url)
-    state.settingsTestResults[providerKey] = code === '200' ? 'ok' : 'fail'
+    const discoveredModelIds = []
+    const modelsUrl = buildProviderModelsUrl(src.url)
+
+    if (modelsUrl) {
+      try {
+        const headers = { Authorization: `Bearer ${testKey}` }
+        if (providerKey === 'openrouter') {
+          headers['HTTP-Referer'] = 'https://github.com/vava-nessa/free-coding-models'
+          headers['X-Title'] = 'free-coding-models'
+        }
+        const modelsResp = await fetch(modelsUrl, { headers })
+        if (modelsResp.ok) {
+          const data = await modelsResp.json()
+          discoveredModelIds.push(...parseProviderModelIds(data))
+        }
+      } catch {
+        // 📖 Discovery failure is non-fatal; we still have repo-defined fallbacks.
+      }
+    }
+
+    const candidateModels = listProviderTestModels(providerKey, src, discoveredModelIds)
+    if (candidateModels.length === 0) { state.settingsTestResults[providerKey] = 'fail'; return }
+    const attemptedCodes = []
+
+    for (const testModel of candidateModels.slice(0, 8)) {
+      const { code } = await ping(testKey, testModel, providerKey, src.url)
+      attemptedCodes.push(code)
+      if (code === '200') {
+        state.settingsTestResults[providerKey] = 'ok'
+        return
+      }
+      if (code === '401' || code === '403') {
+        state.settingsTestResults[providerKey] = 'fail'
+        return
+      }
+    }
+
+    state.settingsTestResults[providerKey] = classifyProviderTestOutcome(attemptedCodes)
   }
 
   // 📖 Manual update checker from settings; keeps status visible in maintenance row.
@@ -146,6 +260,7 @@ export function createKeyHandler(ctx) {
             sortColumn: state.sortColumn,
             sortAsc: state.sortDirection === 'asc',
             pingInterval: state.pingInterval,
+            hideUnconfiguredModels: state.hideUnconfiguredModels,
           })
           setActiveProfile(state.config, name)
           state.activeProfile = name
@@ -759,6 +874,7 @@ export function createKeyHandler(ctx) {
           sortColumn: state.sortColumn,
           sortAsc: state.sortDirection === 'asc',
           pingInterval: state.pingInterval,
+          hideUnconfiguredModels: state.hideUnconfiguredModels,
         })
         setActiveProfile(state.config, 'default')
         state.activeProfile = 'default'
@@ -786,6 +902,7 @@ export function createKeyHandler(ctx) {
             } else {
               state.tierFilterMode = 0
             }
+            state.hideUnconfiguredModels = settings.hideUnconfiguredModels === true
             state.activeProfile = nextProfile
             // 📖 Rebuild favorites from profile data
             syncFavoriteFlags(state.results, state.config)
@@ -884,6 +1001,26 @@ export function createKeyHandler(ctx) {
       const currentIdx = PING_MODE_CYCLE.indexOf(state.pingMode)
       const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % PING_MODE_CYCLE.length : 0
       setPingMode(PING_MODE_CYCLE[nextIdx], 'manual')
+    }
+
+    // 📖 E toggles hiding models whose provider has no configured API key.
+    // 📖 The preference is saved globally and mirrored into the active profile.
+    if (key.name === 'e') {
+      state.hideUnconfiguredModels = !state.hideUnconfiguredModels
+      if (!state.config.settings || typeof state.config.settings !== 'object') state.config.settings = {}
+      state.config.settings.hideUnconfiguredModels = state.hideUnconfiguredModels
+      if (state.activeProfile && state.config.profiles?.[state.activeProfile]) {
+        const profile = state.config.profiles[state.activeProfile]
+        if (!profile.settings || typeof profile.settings !== 'object') profile.settings = {}
+        profile.settings.hideUnconfiguredModels = state.hideUnconfiguredModels
+      }
+      saveConfig(state.config)
+      applyTierFilter()
+      const visible = state.results.filter(r => !r.hidden)
+      state.visibleSorted = sortResultsWithPinnedFavorites(visible, state.sortColumn, state.sortDirection)
+      state.cursor = 0
+      state.scrollOffset = 0
+      return
     }
 
     // 📖 Tier toggle key: T = cycle through each individual tier (All → S+ → S → A+ → A → A- → B+ → B → C → All)

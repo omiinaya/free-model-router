@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/npm/v/free-coding-models?color=76b900&label=npm&logo=npm" alt="npm version">
   <img src="https://img.shields.io/node/v/free-coding-models?color=76b900&logo=node.js" alt="node version">
   <img src="https://img.shields.io/npm/l/free-coding-models?color=76b900" alt="license">
-  <img src="https://img.shields.io/badge/models-158-76b900?logo=nvidia" alt="models count">
+  <img src="https://img.shields.io/badge/models-159-76b900?logo=nvidia" alt="models count">
   <img src="https://img.shields.io/badge/providers-20-blue" alt="providers count">
 </p>
 
@@ -90,7 +90,9 @@
  - **📶 Status indicators** — UP ✅ · No Key 🔑 · Timeout ⏳ · Overloaded 🔥 · Not Found 🚫
  - **🔍 Keyless latency** — Models are pinged even without an API key
  - **🏷 Tier filtering** — Filter models by tier letter (S, A, B, C)
- - **⭐ Persistent favorites** — Press `F` on a selected row to pin/unpin it
+- **⭐ Persistent favorites** — Press `F` on a selected row to pin/unpin it
+- **🙈 Configured-only by default** — Press `E` to toggle showing only providers with configured API keys; the choice persists across sessions and profiles
+- **🪟 Width guardrail** — If your terminal is too narrow, the TUI shows a centered warning instead of rendering a broken table
 
 ---
 
@@ -235,7 +237,7 @@ Use `↑↓` arrows to select, `Enter` to confirm. Then the TUI launches with yo
   You can add or change keys anytime with the P key in the TUI.
 ```
 
-You don't need all seventeen — skip any provider by pressing Enter. At least one key is required.
+You don't need all twenty providers — skip any provider by pressing Enter. At least one key is required.
 
 ### Adding or changing keys later
 
@@ -269,6 +271,7 @@ Press **`P`** to open the Settings screen at any time:
 
  Manual update is in the same Settings screen (`P`) under **Maintenance** (Enter to check, Enter again to install when an update is available).
  Favorites are also persisted in the same config file and survive restarts.
+ The main table now starts in `Configured Only` mode, so if nothing is set up yet you can press `P` and add your first API key immediately.
 
 ### Environment variable overrides
 
@@ -376,7 +379,7 @@ TOGETHER_API_KEY=together_xxx free-coding-models
 
 ## 🤖 Coding Models
 
-**158 coding models** across 20 providers and 8 tiers, ranked by [SWE-bench Verified](https://www.swebench.com) — the industry-standard benchmark measuring real GitHub issue resolution. Scores are self-reported by providers unless noted.
+**159 coding models** across 20 providers and 8 tiers, ranked by [SWE-bench Verified](https://www.swebench.com) — the industry-standard benchmark measuring real GitHub issue resolution. Scores are self-reported by providers unless noted.
 
 ### Alibaba Cloud (DashScope) (8 models)
 
@@ -733,7 +736,7 @@ This script:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**Result:** Continuous monitoring interface that stays open until you select a model or press Ctrl+C. Rolling averages give you accurate long-term latency data, the stability score reveals which models are truly consistent vs. deceptively spikey, and you can configure your tool of choice with one keystroke.
+**Result:** Continuous monitoring interface that stays open until you select a model or press Ctrl+C. Rolling averages give you accurate long-term latency data, the stability score reveals which models are truly consistent vs. deceptively spikey, and you can configure your tool of choice with one keystroke. If the terminal is too narrow, the app shows a centered warning instead of a truncated table.
 
 ---
 
@@ -795,6 +798,9 @@ This script:
     "perplexity": { "enabled": true },
     "zai":      { "enabled": true }
    },
+   "settings": {
+     "hideUnconfiguredModels": true
+   },
    "favorites": [
      "nvidia/deepseek-ai/deepseek-v3.2"
    ]
@@ -830,6 +836,7 @@ This script:
 - **F** — Toggle favorite on selected model (⭐ in Model column, pinned at top)
 - **T** — Cycle tier filter (All → S+ → S → A+ → A → A- → B+ → B → C → All)
 - **D** — Cycle provider filter (All → NIM → Groq → ...)
+- **E** — Toggle configured-only mode (on by default, persisted across sessions and profiles)
 - **Z** — Cycle mode (OpenCode CLI → OpenCode Desktop → OpenClaw)
 - **X** — **Toggle Token Logs** (view recent request/token usage logs)
 - **P** — Open Settings (manage API keys, toggles, updates, profiles)

@@ -10,6 +10,8 @@
  *   → Core logic — getAvg, getVerdict, getUptime, filterByTier, sortResults, findBestModel
  *   → CLI arg parsing — parseArgs covers all flag combinations
  *   → Package & CLI sanity — package.json fields, bin entry, shebang, imports
+ *   → Provider key test model discovery — protects settings key-check probes from stale provider catalogs
+ *   → Provider key test outcome classification — distinguishes auth failure, rate limits, and no-callable-model cases
  *
  * @see lib/utils.js — the functions under test
  * @see sources.js — model data validated here
@@ -40,6 +42,7 @@ import {
 } from '../src/config.js'
 import { buildProviderModelTokenKey, loadTokenUsageByProviderModel, formatTokenTotalCompact } from '../src/token-usage-reader.js'
 import { renderTable } from '../src/render-table.js'
+import { buildProviderModelsUrl, parseProviderModelIds, listProviderTestModels, classifyProviderTestOutcome } from '../src/key-handler.js'
 
 // ─── Helper: create a mock model result ──────────────────────────────────────
 // 📖 Builds a minimal result object matching the shape used by the main script
@@ -217,6 +220,81 @@ describe('getUptime', () => {
     assert.equal(getUptime(mockResult({
       pings: [{ ms: 0, code: '500' }, { ms: 0, code: '429' }]
     })), 0)
+  })
+})
+
+describe('provider key test model discovery', () => {
+  it('derives /models from a chat completions url', () => {
+    assert.equal(
+      buildProviderModelsUrl('https://api.sambanova.ai/v1/chat/completions'),
+      'https://api.sambanova.ai/v1/models'
+    )
+  })
+
+  it('returns null when the provider url is not chat/completions', () => {
+    assert.equal(buildProviderModelsUrl('https://api.replicate.com/v1/predictions'), null)
+  })
+
+  it('parses model ids from an OpenAI-style /models payload', () => {
+    assert.deepEqual(
+      parseProviderModelIds({
+        data: [
+          { id: 'DeepSeek-V3-0324' },
+          { id: 'Meta-Llama-3.1-8B-Instruct' },
+          { nope: true },
+        ],
+      }),
+      ['DeepSeek-V3-0324', 'Meta-Llama-3.1-8B-Instruct']
+    )
+  })
+
+  it('prioritizes the SambaNova override ahead of discovered and static ids', () => {
+    assert.deepEqual(
+      listProviderTestModels('sambanova', sources.sambanova, ['Qwen3-235B', 'DeepSeek-V3-0324']).slice(0, 4),
+      ['DeepSeek-V3-0324', 'Qwen3-235B', 'MiniMax-M2.5', 'DeepSeek-R1-0528']
+    )
+  })
+
+  it('uses discovered repo-known ids before the static catalog head for NVIDIA', () => {
+    assert.deepEqual(
+      listProviderTestModels('nvidia', sources.nvidia, ['openai/gpt-oss-120b', 'deepseek-ai/deepseek-v3.2']).slice(0, 5),
+      [
+        'deepseek-ai/deepseek-v3.1-terminus',
+        'openai/gpt-oss-120b',
+        'deepseek-ai/deepseek-v3.2',
+        'moonshotai/kimi-k2.5',
+        'z-ai/glm5',
+      ]
+    )
+  })
+
+  it('falls back to static models when no discovery data exists', () => {
+    assert.equal(
+      listProviderTestModels('groq', sources.groq)[0],
+      'llama-3.3-70b-versatile'
+    )
+  })
+})
+
+describe('classifyProviderTestOutcome', () => {
+  it('returns ok when any probe succeeds', () => {
+    assert.equal(classifyProviderTestOutcome(['404', '200']), 'ok')
+  })
+
+  it('returns fail on auth errors', () => {
+    assert.equal(classifyProviderTestOutcome(['403']), 'fail')
+  })
+
+  it('returns rate_limited when all attempted probes are throttled', () => {
+    assert.equal(classifyProviderTestOutcome(['429', '429']), 'rate_limited')
+  })
+
+  it('returns no_callable_model when every attempted model is missing', () => {
+    assert.equal(classifyProviderTestOutcome(['404', '410', '404']), 'no_callable_model')
+  })
+
+  it('falls back to fail for mixed non-auth transport or server errors', () => {
+    assert.equal(classifyProviderTestOutcome(['404', '500', 'ERR']), 'fail')
   })
 })
 
@@ -1070,6 +1148,7 @@ describe('config profile functions', () => {
     return {
       apiKeys: { nvidia: 'test-key' },
       providers: { nvidia: true },
+      settings: { hideUnconfiguredModels: true },
       favorites: ['nvidia/test-model'],
       telemetry: { enabled: false },
       profiles: {},
@@ -1083,6 +1162,7 @@ describe('config profile functions', () => {
     assert.equal(settings.sortColumn, 'avg')
     assert.equal(settings.sortAsc, true)
     assert.equal(settings.pingInterval, 10000)
+    assert.equal(settings.hideUnconfiguredModels, true)
   })
 
   it('listProfiles returns empty array for fresh config', () => {
@@ -1104,11 +1184,18 @@ describe('config profile functions', () => {
     assert.deepEqual(profile.favorites, ['nvidia/test-model'])
   })
 
+  it('saveAsProfile persists the configured-only filter in profile settings', () => {
+    const config = mockConfig()
+    saveAsProfile(config, 'focused', { hideUnconfiguredModels: true })
+    assert.equal(config.profiles.focused.settings.hideUnconfiguredModels, true)
+  })
+
   it('loadProfile returns settings and sets activeProfile', () => {
     const config = mockConfig()
-    saveAsProfile(config, 'dev', { sortColumn: 'rank', sortAsc: true, pingInterval: 3000 })
+    saveAsProfile(config, 'dev', { sortColumn: 'rank', sortAsc: true, pingInterval: 3000, hideUnconfiguredModels: true })
     const settings = loadProfile(config, 'dev')
     assert.equal(settings.sortColumn, 'rank')
+    assert.equal(settings.hideUnconfiguredModels, true)
     assert.equal(config.activeProfile, 'dev')
   })
 

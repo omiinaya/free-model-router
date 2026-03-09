@@ -177,9 +177,10 @@ async function main() {
   ensureFavoritesConfig(config)
 
   // 📖 If --profile <name> was passed, load that profile into the live config
+  let startupProfileSettings = null
   if (cliArgs.profileName) {
-    const profileSettings = loadProfile(config, cliArgs.profileName)
-    if (!profileSettings) {
+    startupProfileSettings = loadProfile(config, cliArgs.profileName)
+    if (!startupProfileSettings) {
       console.error(chalk.red(`  Unknown profile "${cliArgs.profileName}". Available: ${listProfiles(config).join(', ') || '(none)'}`))
       process.exit(1)
     }
@@ -336,8 +337,8 @@ async function main() {
     frame: 0,
     cursor: 0,
     selectedModel: null,
-    sortColumn: 'avg',
-    sortDirection: 'asc',
+    sortColumn: startupProfileSettings?.sortColumn || 'avg',
+    sortDirection: startupProfileSettings?.sortAsc === false ? 'desc' : 'asc',
     pingInterval: PING_MODE_INTERVALS.speed, // 📖 Effective live interval derived from the active ping mode.
     pingMode: 'speed',            // 📖 Current ping mode: speed | normal | slow | forced.
     pingModeSource: 'startup',    // 📖 Why this mode is active: startup | manual | auto | idle | activity.
@@ -348,8 +349,10 @@ async function main() {
     mode,                         // 📖 'opencode' or 'openclaw' — controls Enter action
     tierFilterMode: 0,            // 📖 Index into TIER_CYCLE (0=All, 1=S+, 2=S, ...)
     originFilterMode: 0,          // 📖 Index into ORIGIN_CYCLE (0=All, then providers)
+    hideUnconfiguredModels: startupProfileSettings?.hideUnconfiguredModels === true || config.settings?.hideUnconfiguredModels === true, // 📖 Hide providers with no configured API key when true.
     scrollOffset: 0,              // 📖 First visible model index in viewport
     terminalRows: process.stdout.rows || 24,  // 📖 Current terminal height
+    terminalCols: process.stdout.columns || 80, // 📖 Current terminal width
     // 📖 Settings screen state (P key opens it)
     settingsOpen: false,          // 📖 Whether settings overlay is active
     settingsCursor: 0,            // 📖 Which provider row is selected in settings
@@ -408,6 +411,7 @@ async function main() {
   // 📖 Re-clamp viewport on terminal resize
   process.stdout.on('resize', () => {
     state.terminalRows = process.stdout.rows || 24
+    state.terminalCols = process.stdout.columns || 80
     adjustScrollOffset(state)
   })
 
@@ -479,13 +483,18 @@ async function main() {
 
   // 📖 originFilterMode: index into ORIGIN_CYCLE, 0=All, then each provider key in order
   const ORIGIN_CYCLE = [null, ...Object.keys(sources)]
-  state.tierFilterMode = 0
+  state.tierFilterMode = startupProfileSettings?.tierFilter ? Math.max(0, TIER_CYCLE.indexOf(startupProfileSettings.tierFilter)) : 0
   state.originFilterMode = 0
 
   function applyTierFilter() {
     const activeTier = TIER_CYCLE[state.tierFilterMode]
     const activeOrigin = ORIGIN_CYCLE[state.originFilterMode]
     state.results.forEach(r => {
+      const unconfiguredHide = state.hideUnconfiguredModels && !getApiKey(state.config, r.providerKey)
+      if (unconfiguredHide) {
+        r.hidden = true
+        return
+      }
       // 📖 Favorites stay visible regardless of tier/origin filters.
       if (r.isFavorite) {
         r.hidden = false
@@ -643,7 +652,7 @@ async function main() {
                 ? overlays.renderHelp()
               : state.logVisible
                 ? overlays.renderLog()
-                : renderTable(state.results, state.pendingPings, state.frame, state.cursor, state.sortColumn, state.sortDirection, state.pingInterval, state.lastPingTime, state.mode, state.tierFilterMode, state.scrollOffset, state.terminalRows, state.originFilterMode, state.activeProfile, state.profileSaveMode, state.profileSaveBuffer, state.proxyStartupStatus, state.pingMode, state.pingModeSource)
+                : renderTable(state.results, state.pendingPings, state.frame, state.cursor, state.sortColumn, state.sortDirection, state.pingInterval, state.lastPingTime, state.mode, state.tierFilterMode, state.scrollOffset, state.terminalRows, state.terminalCols, state.originFilterMode, state.activeProfile, state.profileSaveMode, state.profileSaveBuffer, state.proxyStartupStatus, state.pingMode, state.pingModeSource, state.hideUnconfiguredModels)
     process.stdout.write(ALT_HOME + content)
   }, Math.round(1000 / FPS))
 
@@ -651,7 +660,7 @@ async function main() {
   const initialVisible = state.results.filter(r => !r.hidden)
   state.visibleSorted = sortResultsWithPinnedFavorites(initialVisible, state.sortColumn, state.sortDirection)
 
-  process.stdout.write(ALT_HOME + renderTable(state.results, state.pendingPings, state.frame, state.cursor, state.sortColumn, state.sortDirection, state.pingInterval, state.lastPingTime, state.mode, state.tierFilterMode, state.scrollOffset, state.terminalRows, state.originFilterMode, state.activeProfile, state.profileSaveMode, state.profileSaveBuffer, state.proxyStartupStatus, state.pingMode, state.pingModeSource))
+  process.stdout.write(ALT_HOME + renderTable(state.results, state.pendingPings, state.frame, state.cursor, state.sortColumn, state.sortDirection, state.pingInterval, state.lastPingTime, state.mode, state.tierFilterMode, state.scrollOffset, state.terminalRows, state.terminalCols, state.originFilterMode, state.activeProfile, state.profileSaveMode, state.profileSaveBuffer, state.proxyStartupStatus, state.pingMode, state.pingModeSource, state.hideUnconfiguredModels))
 
   // 📖 If --recommend was passed, auto-open the Smart Recommend overlay on start
   if (cliArgs.recommendMode) {

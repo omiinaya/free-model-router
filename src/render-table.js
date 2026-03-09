@@ -43,29 +43,29 @@ import { calculateViewport, sortResultsWithPinnedFavorites, renderProxyStatusLin
 const require = createRequire(import.meta.url)
 const { version: LOCAL_VERSION } = require('../package.json')
 
-// 📖 Provider column palette: keep all Origins in the same visual family
-// 📖 (blue/cyan tones) while making each provider easy to distinguish at a glance.
+// 📖 Provider column palette: soft pastel rainbow so each provider stays easy
+// 📖 to spot without turning the table into a harsh neon wall.
 const PROVIDER_COLOR = {
-  nvidia: [120, 205, 255],
-  groq: [95, 185, 255],
-  cerebras: [70, 165, 255],
-  sambanova: [45, 145, 245],
-  openrouter: [135, 220, 255],
-  huggingface: [110, 190, 235],
-  replicate: [85, 175, 230],
-  deepinfra: [60, 160, 225],
-  fireworks: [125, 215, 245],
-  codestral: [100, 180, 240],
-  hyperbolic: [75, 170, 240],
-  scaleway: [55, 150, 235],
-  googleai: [130, 210, 255],
-  siliconflow: [90, 195, 245],
-  together: [65, 155, 245],
-  cloudflare: [115, 200, 240],
-  perplexity: [140, 225, 255],
-  qwen: [80, 185, 235],
-  zai: [50, 140, 225],
-  iflow: [145, 230, 255],
+  nvidia: [178, 235, 190],
+  groq: [255, 204, 188],
+  cerebras: [179, 229, 252],
+  sambanova: [255, 224, 178],
+  openrouter: [225, 190, 231],
+  huggingface: [255, 245, 157],
+  replicate: [187, 222, 251],
+  deepinfra: [178, 223, 219],
+  fireworks: [255, 205, 210],
+  codestral: [248, 187, 208],
+  hyperbolic: [200, 230, 201],
+  scaleway: [129, 212, 250],
+  googleai: [187, 222, 251],
+  siliconflow: [178, 235, 242],
+  together: [197, 225, 165],
+  cloudflare: [255, 204, 128],
+  perplexity: [159, 234, 201],
+  qwen: [255, 224, 130],
+  zai: [174, 213, 255],
+  iflow: [220, 231, 117],
 }
 
 // 📖 Active proxy reference for footer status line (set by bin/free-coding-models.js).
@@ -77,7 +77,7 @@ export function setActiveProxy(proxyInstance) {
 }
 
 // ─── renderTable: mode param controls footer hint text (opencode vs openclaw) ─────────
-export function renderTable(results, pendingPings, frame, cursor = null, sortColumn = 'avg', sortDirection = 'asc', pingInterval = PING_INTERVAL, lastPingTime = Date.now(), mode = 'opencode', tierFilterMode = 0, scrollOffset = 0, terminalRows = 0, originFilterMode = 0, activeProfile = null, profileSaveMode = false, profileSaveBuffer = '', proxyStartupStatus = null, pingMode = 'normal', pingModeSource = 'auto') {
+export function renderTable(results, pendingPings, frame, cursor = null, sortColumn = 'avg', sortDirection = 'asc', pingInterval = PING_INTERVAL, lastPingTime = Date.now(), mode = 'opencode', tierFilterMode = 0, scrollOffset = 0, terminalRows = 0, terminalCols = 0, originFilterMode = 0, activeProfile = null, profileSaveMode = false, profileSaveBuffer = '', proxyStartupStatus = null, pingMode = 'normal', pingModeSource = 'auto', hideUnconfiguredModels = false) {
   // 📖 Filter out hidden models for display
   const visibleResults = results.filter(r => !r.hidden)
 
@@ -85,48 +85,48 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
   const down    = visibleResults.filter(r => r.status === 'down').length
   const timeout = visibleResults.filter(r => r.status === 'timeout').length
   const pending = visibleResults.filter(r => r.status === 'pending').length
+  const totalVisible = visibleResults.length
+  const completedPings = Math.max(0, totalVisible - pending)
 
   // 📖 Calculate seconds until next ping
   const timeSinceLastPing = Date.now() - lastPingTime
   const timeUntilNextPing = Math.max(0, pingInterval - timeSinceLastPing)
-  const secondsUntilNext = Math.ceil(timeUntilNextPing / 1000)
-
-  const phase = pending > 0
-    ? chalk.dim(`discovering — ${pending} remaining…`)
-    : pendingPings > 0
-      ? chalk.dim(`pinging — ${pendingPings} in flight…`)
-      : chalk.dim(`next ping ${secondsUntilNext}s`)
+  const secondsUntilNext = timeUntilNextPing / 1000
+  const secondsUntilNextLabel = secondsUntilNext.toFixed(1)
 
   const intervalSec = Math.round(pingInterval / 1000)
   const pingModeMeta = {
-    speed: { label: `${intervalSec}s speed`, color: chalk.bold.rgb(255, 210, 80) },
-    normal: { label: `${intervalSec}s normal`, color: chalk.bold.rgb(120, 210, 255) },
-    slow: { label: `${intervalSec}s slow`, color: chalk.bold.rgb(255, 170, 90) },
-    forced: { label: `${intervalSec}s forced`, color: chalk.bold.rgb(255, 120, 120) },
+    speed: { label: 'fast', color: chalk.bold.rgb(255, 210, 80) },
+    normal: { label: 'normal', color: chalk.bold.rgb(120, 210, 255) },
+    slow: { label: 'slow', color: chalk.bold.rgb(255, 170, 90) },
+    forced: { label: 'forced', color: chalk.bold.rgb(255, 120, 120) },
   }
   const activePingMode = pingModeMeta[pingMode] ?? pingModeMeta.normal
-  const pingModeBadge = activePingMode.color(` [${activePingMode.label}]`)
-  const pingModeHint = pingModeSource === 'idle'
-    ? chalk.dim(' idle')
-    : pingModeSource === 'activity'
-      ? chalk.dim(' resumed')
-      : pingModeSource === 'startup'
-        ? chalk.dim(' startup')
-        : ''
+  const pingProgressText = `${completedPings}/${totalVisible}`
+  const nextCountdownColor = secondsUntilNext > 8
+    ? chalk.red.bold
+    : secondsUntilNext >= 4
+      ? chalk.yellow.bold
+      : secondsUntilNext < 1
+        ? chalk.greenBright.bold
+        : chalk.green.bold
+  const pingControlBadge =
+    activePingMode.color(' [ ') +
+    chalk.yellow.bold('W') +
+    activePingMode.color(` Ping Interval : ${intervalSec}s (${activePingMode.label}) - ${pingProgressText} - next : `) +
+    nextCountdownColor(`${secondsUntilNextLabel}s`) +
+    activePingMode.color(' ]')
 
-  // 📖 Mode badge shown in header so user knows what Enter will do
-  // 📖 Now includes key hint for mode toggle
+  // 📖 Tool badge keeps the active launch target visible in the header, so the
+  // 📖 footer no longer needs a redundant Enter action or mode toggle reminder.
   let modeBadge
   if (mode === 'openclaw') {
-    modeBadge = chalk.bold.rgb(255, 100, 50)(' [🦞 OpenClaw]')
+    modeBadge = chalk.bold.rgb(255, 100, 50)(' [ ') + chalk.yellow.bold('Z') + chalk.bold.rgb(255, 100, 50)(' Tool : OpenClaw ]')
   } else if (mode === 'opencode-desktop') {
-    modeBadge = chalk.bold.rgb(0, 200, 255)(' [🖥  Desktop]')
+    modeBadge = chalk.bold.rgb(0, 200, 255)(' [ ') + chalk.yellow.bold('Z') + chalk.bold.rgb(0, 200, 255)(' Tool : OpenCode Desktop ]')
   } else {
-    modeBadge = chalk.bold.rgb(0, 200, 255)(' [💻 CLI]')
+    modeBadge = chalk.bold.rgb(0, 200, 255)(' [ ') + chalk.yellow.bold('Z') + chalk.bold.rgb(0, 200, 255)(' Tool : OpenCode CLI ]')
   }
-  
-  // 📖 Add mode toggle hint
-  const modeHint = chalk.dim.yellow(' (Z to toggle)')
 
   // 📖 Tier filter badge shown when filtering is active (shows exact tier name)
   const TIER_CYCLE_NAMES = [null, 'S+', 'S', 'A+', 'A', 'A-', 'B+', 'B', 'C']
@@ -172,16 +172,29 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
   const W_UPTIME = 6
   const W_TOKENS = 7
   const W_USAGE = 7
+  const MIN_TABLE_WIDTH = 166
+
+  if (terminalCols > 0 && terminalCols < MIN_TABLE_WIDTH) {
+    const lines = []
+    const blankLines = Math.max(0, Math.floor(((terminalRows || 24) - 3) / 2))
+    const warning = 'Please maximize your terminal for optimal use. The current terminal width is too small for the full table.'
+    const padLeft = Math.max(0, Math.floor((terminalCols - warning.length) / 2))
+    for (let i = 0; i < blankLines; i++) lines.push('')
+    lines.push(' '.repeat(padLeft) + chalk.red.bold(warning))
+    while (terminalRows > 0 && lines.length < terminalRows) lines.push('')
+    const EL = '\x1b[K'
+    return lines.map(line => line + EL).join('\n')
+  }
 
   // 📖 Sort models using the shared helper
   const sorted = sortResultsWithPinnedFavorites(visibleResults, sortColumn, sortDirection)
 
   const lines = [
-    `  ${chalk.greenBright.bold('✅ FCM')}${modeBadge}${pingModeBadge}${modeHint}${tierBadge}${originBadge}${profileBadge}   ` +
+    `  ${chalk.greenBright.bold(`✅ Free-Coding-Models v${LOCAL_VERSION}`)}${modeBadge}${pingControlBadge}${tierBadge}${originBadge}${profileBadge}${chalk.reset('')}   ` +
       chalk.greenBright(`✅ ${up}`) + chalk.dim(' up  ') +
       chalk.yellow(`⏳ ${timeout}`) + chalk.dim(' timeout  ') +
       chalk.red(`❌ ${down}`) + chalk.dim(' down  ') +
-      phase,
+      '',
     '',
   ]
 
@@ -276,6 +289,16 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
     chalk.dim('─'.repeat(W_USAGE))
   )
 
+  if (sorted.length === 0) {
+    lines.push('')
+    if (hideUnconfiguredModels) {
+      lines.push(`  ${chalk.redBright.bold('Press P to configure your API key.')}`)
+      lines.push(`  ${chalk.dim('No configured provider currently exposes visible models in the table.')}`)
+    } else {
+      lines.push(`  ${chalk.yellow.bold('No models match the current filters.')}`)
+    }
+  }
+
   // 📖 Viewport clipping: only render models that fit on screen
   const vp = calculateViewport(terminalRows, scrollOffset, sorted.length)
 
@@ -303,6 +326,7 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
     const prefixDisplayWidth = 2
     const nameWidth = Math.max(0, W_MODEL - prefixDisplayWidth)
     const name = favoritePrefix + r.label.slice(0, nameWidth).padEnd(nameWidth)
+    const modelColor = chalk.rgb(...providerRgb)
     const sweScore = r.sweScore ?? '—'
     // 📖 SWE% colorized on the same gradient as Tier:
     //   ≥70% bright neon green (S+), ≥60% green (S), ≥50% yellow-green (A+),
@@ -490,10 +514,11 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
       uptimeCell = chalk.red(uptimeStr.padEnd(W_UPTIME))
     }
 
-    // 📖 When cursor is on this row, render Model and Provider in bright white for readability
-    const nameCell = isCursor ? chalk.white.bold(favoritePrefix + r.label.slice(0, nameWidth).padEnd(nameWidth)) : name
+    // 📖 Model text now mirrors the provider hue so provider affinity is visible
+    // 📖 even before the eye reaches the Provider column.
+    const nameCell = isCursor ? modelColor.bold(name) : modelColor(name)
     const sourceCursorText = providerName.padEnd(W_SOURCE)
-    const sourceCell = isCursor ? chalk.white.bold(sourceCursorText) : source
+    const sourceCell = isCursor ? chalk.rgb(...providerRgb).bold(sourceCursorText) : source
 
     // 📖 Usage column — provider-scoped remaining quota when measurable,
     // 📖 otherwise a green dot to show "usable but not meaningfully quantifiable".
@@ -527,12 +552,12 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
     const row = '  ' + num + '  ' + tier + '  ' + sweCell + '  ' + ctxCell + '  ' + nameCell + '  ' + sourceCell + '  ' + pingCell + '  ' + avgCell + '  ' + status + '  ' + speedCell + '  ' + stabCell + '  ' + uptimeCell + '  ' + tokensCell + '  ' + usageCell
 
     if (isCursor) {
-      lines.push(chalk.bgRgb(50, 0, 60)(row))
+      lines.push(chalk.bgRgb(155, 55, 135)(row))
     } else if (r.isRecommended) {
       // 📖 Medium green background for recommended models (distinguishable from favorites)
       lines.push(chalk.bgRgb(15, 40, 15)(row))
     } else if (r.isFavorite) {
-      lines.push(chalk.bgRgb(35, 20, 0)(row))
+      lines.push(chalk.bgRgb(88, 64, 10)(row))
     } else {
       lines.push(row)
     }
@@ -548,15 +573,11 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
    } else {
      lines.push('')
    }
-  // 📖 Footer hints adapt based on active mode.
+  // 📖 Footer hints keep only navigation and secondary actions now that the
+  // 📖 active tool target is already visible in the header badge.
   const hotkey = (keyLabel, text) => chalk.yellow(keyLabel) + chalk.dim(text)
-  const actionHint = mode === 'openclaw'
-    ? hotkey('Enter', '→SetOpenClaw')
-    : mode === 'opencode-desktop'
-      ? hotkey('Enter', '→OpenDesktop')
-      : hotkey('Enter', '→OpenCode')
-  // 📖 Line 1: core navigation + sorting shortcuts
-  lines.push(chalk.dim(`  ↑↓ Navigate  •  `) + actionHint + chalk.dim(`  •  `) + hotkey('F', ' Toggle Favorite') + chalk.dim(`  •  Press Highlighted letters in column named to sort & filter  •  `) + hotkey('T', ' Tier') + chalk.dim(`  •  `) + hotkey('D', ' Provider') + chalk.dim(`  •  `) + hotkey('W', ' Ping Mode : FAST/NORMAL/SLOW/FORCED') + chalk.dim(`  •  `) + hotkey('Z', ' Tool Mode') + chalk.dim(`  •  `) + hotkey('X', ' Token Logs') + chalk.dim(`  •  `) + hotkey('P', ' Settings') + chalk.dim(`  •  `) + hotkey('K', ' Help'))
+  // 📖 Line 1: core navigation + filtering shortcuts
+  lines.push(chalk.dim(`  ↑↓ Navigate  •  `) + hotkey('F', ' Toggle Favorite') + chalk.dim(`  •  `) + hotkey('T', ' Tier') + chalk.dim(`  •  `) + hotkey('D', ' Provider') + chalk.dim(`  •  `) + hotkey('E', ' Configured Only') + chalk.dim(`  •  `) + hotkey('X', ' Token Logs') + chalk.dim(`  •  `) + hotkey('P', ' Settings') + chalk.dim(`  •  `) + hotkey('K', ' Help'))
   // 📖 Line 2: profiles, recommend, feature request, bug report, and extended hints — gives visibility to less-obvious features
   lines.push(chalk.dim(`  `) + hotkey('⇧P', ' Cycle profile') + chalk.dim(`  •  `) + hotkey('⇧S', ' Save profile') + chalk.dim(`  •  `) + hotkey('Q', ' Smart Recommend') + chalk.dim(`  •  `) + hotkey('J', ' Request feature') + chalk.dim(`  •  `) + hotkey('I', ' Report bug'))
   // 📖 Proxy status line — always rendered with explicit state (starting/running/failed/stopped)
@@ -574,8 +595,6 @@ export function renderTable(results, pendingPings, frame, cursor = null, sortCol
     chalk.rgb(200, 150, 255)('\x1b]8;;https://discord.gg/5MbTnDC3Md\x1b\\Discord\x1b]8;;\x1b\\') +
     chalk.dim(' → ') +
     chalk.rgb(200, 150, 255)('https://discord.gg/5MbTnDC3Md') +
-    chalk.dim('  •  ') +
-    chalk.dim(`v${LOCAL_VERSION}`) +
     chalk.dim('  •  ') +
     chalk.dim('Ctrl+C Exit')
   )

@@ -12,6 +12,8 @@
  *   - ctx: Context window size in tokens (e.g., "128k", "32k")
  *
  *   Add new sources here to support additional providers beyond NIM.
+ *   Public provider catalogs drift often, so these IDs are periodically
+ *   refreshed against official docs and live model endpoints when available.
  *
  *   🎯 Tier scale (based on SWE-bench Verified):
  *   - S+: 70%+ (elite frontier coders)
@@ -114,9 +116,9 @@ export const cerebras = [
   ['llama-4-scout-17b-16e-instruct',       'Llama 4 Scout',      'A',  '44.0%', '10M'],
   ['qwen-3-32b',                           'Qwen3 32B',          'A+', '50.0%', '128k'],
   ['gpt-oss-120b',                         'GPT OSS 120B',       'S',  '60.0%', '128k'],
-  ['qwen-3-235b-a22b',                     'Qwen3 235B',         'S+', '70.0%', '128k'],
+  ['qwen-3-235b-a22b-instruct-2507',       'Qwen3 235B',         'S+', '70.0%', '128k'],
   ['llama3.1-8b',                          'Llama 3.1 8B',       'B',  '28.8%', '128k'],
-  ['glm-4.6',                              'GLM 4.6',            'A-', '38.0%', '128k'],
+  ['zai-glm-4.7',                          'GLM 4.7',            'S+', '73.8%', '200k'],
 ]
 
 // 📖 SambaNova source - https://cloud.sambanova.ai
@@ -124,14 +126,15 @@ export const cerebras = [
 // 📖 OpenAI-compatible API, supports all major coding models including DeepSeek V3/R1, Qwen3, Llama 4
 export const sambanova = [
   // ── S+ tier ──
-  ['Qwen3-235B-A22B-Instruct-2507',        'Qwen3 235B',         'S+', '70.0%', '128k'],
+  ['MiniMax-M2.5',                         'MiniMax M2.5',       'S+', '74.0%', '160k'],
   // ── S tier ──
   ['DeepSeek-R1-0528',                     'DeepSeek R1 0528',   'S',  '61.0%', '128k'],
   ['DeepSeek-V3.1',                        'DeepSeek V3.1',      'S',  '62.0%', '128k'],
   ['DeepSeek-V3-0324',                     'DeepSeek V3 0324',   'S',  '62.0%', '128k'],
+  ['DeepSeek-V3.2',                        'DeepSeek V3.2',      'S+', '73.1%', '8k'],
   ['Llama-4-Maverick-17B-128E-Instruct',   'Llama 4 Maverick',   'S',  '62.0%', '1M'],
   ['gpt-oss-120b',                         'GPT OSS 120B',       'S',  '60.0%', '128k'],
-  ['deepseek-ai/DeepSeek-V3.1-Terminus',   'DeepSeek V3.1 Term', 'S',  '68.4%', '128k'],
+  ['DeepSeek-V3.1-Terminus',               'DeepSeek V3.1 Term', 'S',  '68.4%', '128k'],
   // ── A+ tier ──
   ['Qwen3-32B',                            'Qwen3 32B',          'A+', '50.0%', '128k'],
   // ── A tier ──
@@ -140,24 +143,23 @@ export const sambanova = [
   ['Meta-Llama-3.3-70B-Instruct',          'Llama 3.3 70B',      'A-', '39.5%', '128k'],
   // ── B tier ──
   ['Meta-Llama-3.1-8B-Instruct',           'Llama 3.1 8B',       'B',  '28.8%', '128k'],
-  // ── A tier — requested Llama3-Groq coding tuned family ──
-  ['Llama-3-Groq-70B-Tool-Use',            'Llama3-Groq 70B',    'A',  '43.0%', '128k'],
 ]
 
 // 📖 OpenRouter source - https://openrouter.ai
 // 📖 Free :free models with shared quota — 50 free req/day
 // 📖 API keys at https://openrouter.ai/keys
 export const openrouter = [
-  ['qwen/qwen3-coder:480b-free',               'Qwen3 Coder 480B',   'S+', '70.6%', '256k'],
-  ['mistralai/devstral-2-free',                'Devstral 2',         'S+', '72.2%', '256k'],
-  ['mimo-v2-flash-free',                       'Mimo V2 Flash',      'A',  '45.0%', '128k'],
+  ['qwen/qwen3-coder:free',                    'Qwen3 Coder 480B',   'S+', '70.6%', '262k'],
+  ['z-ai/glm-4.5-air:free',                    'GLM 4.5 Air',        'S+', '72.0%', '128k'],
+  ['google/gemma-3-27b-it:free',               'Gemma 3 27B',        'B',  '22.0%', '128k'],
   ['stepfun/step-3.5-flash:free',              'Step 3.5 Flash',     'S+', '74.4%', '256k'],
-  ['deepseek/deepseek-r1-0528:free',           'DeepSeek R1 0528',   'S',  '61.0%', '128k'],
   ['qwen/qwen3-next-80b-a3b-instruct:free',    'Qwen3 80B Instruct', 'S',  '65.0%', '128k'],
   ['openai/gpt-oss-120b:free',                 'GPT OSS 120B',       'S',  '60.0%', '128k'],
   ['openai/gpt-oss-20b:free',                  'GPT OSS 20B',        'A',  '42.0%', '128k'],
   ['nvidia/nemotron-3-nano-30b-a3b:free',      'Nemotron Nano 30B',  'A',  '43.0%', '128k'],
   ['meta-llama/llama-3.3-70b-instruct:free',   'Llama 3.3 70B',      'A-', '39.5%', '128k'],
+  ['mistralai/mistral-small-3.1-24b-instruct:free', 'Mistral Small 3.1', 'B+', '30.0%', '128k'],
+  ['google/gemma-3-12b-it:free',               'Gemma 3 12B',        'C',  '15.0%', '128k'],
 ]
 
 // 📖 Hugging Face Inference source - https://huggingface.co

@@ -71,7 +71,7 @@
  *   - apiKeys: API keys per provider (can differ between work/personal setups)
  *   - providers: enabled/disabled state per provider
  *   - favorites: list of pinned favorite models
- *   - settings: extra TUI preferences (tierFilter, sortColumn, sortAsc, pingInterval)
+ *   - settings: extra TUI preferences (tierFilter, sortColumn, sortAsc, pingInterval, hideUnconfiguredModels)
  *
  * 📖 When a profile is loaded via --profile <name> or Shift+P, the main config's
  *    apiKeys/providers/favorites are replaced with the profile's values. The profile
@@ -164,6 +164,8 @@ export function loadConfig() {
       // 📖 Ensure the shape is always complete — fill missing sections with defaults
       if (!parsed.apiKeys) parsed.apiKeys = {}
       if (!parsed.providers) parsed.providers = {}
+      if (!parsed.settings || typeof parsed.settings !== 'object') parsed.settings = {}
+      if (typeof parsed.settings.hideUnconfiguredModels !== 'boolean') parsed.settings.hideUnconfiguredModels = true
       // 📖 Favorites: list of "providerKey/modelId" pinned rows.
       if (!Array.isArray(parsed.favorites)) parsed.favorites = []
       parsed.favorites = parsed.favorites.filter((fav) => typeof fav === 'string' && fav.trim().length > 0)
@@ -173,6 +175,10 @@ export function loadConfig() {
       if (typeof parsed.telemetry.anonymousId !== 'string' || !parsed.telemetry.anonymousId.trim()) parsed.telemetry.anonymousId = null
       // 📖 Ensure profiles section exists (added in profile system)
       if (!parsed.profiles || typeof parsed.profiles !== 'object') parsed.profiles = {}
+      for (const profile of Object.values(parsed.profiles)) {
+        if (!profile || typeof profile !== 'object') continue
+        profile.settings = profile.settings ? { ..._emptyProfileSettings(), ...profile.settings } : _emptyProfileSettings()
+      }
       if (parsed.activeProfile && typeof parsed.activeProfile !== 'string') parsed.activeProfile = null
       return parsed
     } catch {
@@ -385,7 +391,7 @@ export function isProviderEnabled(config, providerKey) {
  * 📖 These settings are saved/restored when switching profiles so each profile
  *    can have different sort, filter, and ping preferences.
  *
- * @returns {{ tierFilter: string|null, sortColumn: string, sortAsc: boolean, pingInterval: number }}
+ * @returns {{ tierFilter: string|null, sortColumn: string, sortAsc: boolean, pingInterval: number, hideUnconfiguredModels: boolean }}
  */
 export function _emptyProfileSettings() {
   return {
@@ -393,6 +399,7 @@ export function _emptyProfileSettings() {
     sortColumn: 'avg',    // 📖 default sort column
     sortAsc: true,        // 📖 true = ascending (fastest first for latency)
     pingInterval: 10000,  // 📖 default ms between pings in the steady "normal" mode
+    hideUnconfiguredModels: true, // 📖 true = default to providers that are actually configured
   }
 }
 
@@ -505,6 +512,10 @@ function _emptyConfig() {
   return {
     apiKeys: {},
     providers: {},
+    // 📖 Global TUI preferences that should persist even without a named profile.
+    settings: {
+      hideUnconfiguredModels: true,
+    },
     // 📖 Pinned favorites rendered at top of the table ("providerKey/modelId").
     favorites: [],
     // 📖 Telemetry consent is explicit. null = not decided yet.
