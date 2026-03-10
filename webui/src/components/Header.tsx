@@ -1,9 +1,8 @@
 'use client'
 
 import { useApp } from '@/context/AppContext'
-import { TOOL_METADATA, PING_INTERVALS, TOOL_MODE_ORDER } from '@/constants'
+import { TOOL_METADATA, TOOL_MODE_ORDER, TIER_CYCLE } from '@/constants'
 import type { ToolMode, PingMode } from '@/types'
-import { TierFilter } from '@/components/Filters/TierFilter'
 import { ProviderFilter } from '@/components/Filters/ProviderFilter'
 import { ConfiguredToggle } from '@/components/Filters/ConfiguredToggle'
 import { Button } from '@/components/ui/button'
@@ -23,6 +22,8 @@ export function Header() {
     setPingMode,
     toolMode,
     setToolMode,
+    tierFilter,
+    setTierFilter,
     activeProfile,
     visibleResults,
     lastPingTime,
@@ -71,30 +72,6 @@ export function Header() {
   }, [lastPingTime, pingInterval])
 
   const tools: ToolMode[] = [...TOOL_MODE_ORDER]
-  const currentToolIdx = tools.indexOf(toolMode)
-
-  const cycleTool = () => {
-    const nextIdx = (currentToolIdx + 1) % tools.length
-    setToolMode(tools[nextIdx])
-  }
-
-  const cyclePingMode = () => {
-    const modes: PingMode[] = ['speed', 'normal', 'slow', 'forced']
-    const currentIdx = modes.indexOf(pingMode)
-    const nextIdx = (currentIdx + 1) % modes.length
-    setPingMode(modes[nextIdx])
-  }
-
-  const totalVisible = visibleResults.length
-  const pending = visibleResults.filter(r => r.status === 'pending').length
-  const completedPings = totalVisible - pending
-
-  const pingModeLabels = {
-    speed: { label: 'Speed', color: 'bg-orange-500' },
-    normal: { label: 'Normal', color: 'bg-blue-500' },
-    slow: { label: 'Slow', color: 'bg-purple-500' },
-    forced: { label: 'Forced', color: 'bg-red-500' },
-  }
 
   return (
     <div className="border-b border-zinc-800 bg-zinc-950 px-4 py-3">
@@ -135,8 +112,39 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Tier Filter */}
-          <TierFilter />
+          {/* Tier Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button size="sm" variant="outline" className="h-8">
+                <span className="flex items-center gap-2">
+                  <span>Tier</span>
+                  <span className="text-zinc-400">
+                    {tierFilter === 0 ? 'All' : TIER_CYCLE[tierFilter]}
+                  </span>
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                onClick={() => setTierFilter(0)}
+                className={tierFilter === 0 ? 'bg-zinc-800' : ''}
+              >
+                All
+              </DropdownMenuItem>
+              {TIER_CYCLE.slice(1).map((tier, idx) => {
+                const filterIndex = idx + 1
+                return (
+                  <DropdownMenuItem
+                    key={tier}
+                    onClick={() => setTierFilter(filterIndex)}
+                    className={tierFilter === filterIndex ? 'bg-zinc-800' : ''}
+                  >
+                    {tier}
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Provider Filter */}
           <ProviderFilter />
@@ -153,24 +161,54 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Ping Mode Buttons */}
-          <div className="flex items-center gap-1">
-            {(Object.keys(pingModeLabels) as Array<keyof typeof pingModeLabels>).map(mode => {
-              const meta = pingModeLabels[mode]
-              const isActive = pingMode === mode
-              return (
-                <Button
+          {/* Ping Mode Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button size="sm" variant="outline" className="h-8">
+                <span className="flex items-center gap-2">
+                  {(() => {
+                    const colors: Record<string, string> = {
+                      speed: 'bg-orange-500',
+                      normal: 'bg-blue-500',
+                      slow: 'bg-purple-500',
+                      forced: 'bg-red-500'
+                    }
+                    const labels: Record<string, string> = {
+                      speed: 'Speed',
+                      normal: 'Normal',
+                      slow: 'Slow',
+                      forced: 'Forced'
+                    }
+                    return (
+                      <>
+                        <span className={`w-2 h-2 rounded-full ${colors[pingMode]}`} />
+                        <span>{labels[pingMode]}</span>
+                      </>
+                    )
+                  })()}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {(['speed', 'normal', 'slow', 'forced'] as Array<PingMode>).map(mode => (
+                <DropdownMenuItem
                   key={mode}
-                  size="sm"
-                  variant={isActive ? 'default' : 'outline'}
-                  className={`h-8 capitalize ${isActive ? meta.color + ' text-white' : ''}`}
                   onClick={() => setPingMode(mode)}
+                  className={pingMode === mode ? 'bg-zinc-800' : ''}
                 >
-                  {meta.label}
-                </Button>
-              )
-            })}
-          </div>
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${
+                      mode === 'speed' ? 'bg-orange-500' :
+                      mode === 'normal' ? 'bg-blue-500' :
+                      mode === 'slow' ? 'bg-purple-500' :
+                      'bg-red-500'
+                    }`} />
+                    <span>{mode.charAt(0).toUpperCase() + mode.slice(1)}</span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Launch Best Button */}
           <Button
@@ -185,7 +223,7 @@ export function Header() {
           {/* Ping Status */}
           <div className="text-sm text-zinc-400 flex items-center gap-2">
             <span>
-              {completedPings}/{totalVisible}
+              {visibleResults.filter(r => r.status !== 'pending').length}/{visibleResults.length}
             </span>
             <span>next: {secondsUntilNext}s</span>
           </div>
