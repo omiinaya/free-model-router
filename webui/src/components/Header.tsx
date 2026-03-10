@@ -80,7 +80,7 @@ export function Header() {
 
           {/* Tool Mode Selector */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 gap-2">
                 <span className="text-yellow-400">Z</span>
                 <span>Tool: {TOOL_METADATA[toolMode]?.label}</span>
