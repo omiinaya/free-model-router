@@ -9,11 +9,24 @@ import { Switch } from '@/components/ui/switch'
 import { useState } from 'react'
 
 export function Settings() {
-  const { settingsOpen, setSettingsOpen, config, saveConfig } = useApp()
+  const { settingsOpen, setSettingsOpen, config, saveConfig, providerTestResults, testProvider } = useApp()
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editBuffer, setEditBuffer] = useState('')
 
   const providerKeys = Object.keys(sources)
+
+  const getStatusIcon = (pk: string) => {
+    const status = providerTestResults[pk]
+    if (!status || status === '') return null
+    switch (status) {
+      case 'pending': return <span className="text-yellow-400">⏳ Testing...</span>
+      case 'ok': return <span className="text-green-400">✅ OK</span>
+      case 'fail': return <span className="text-red-400">❌ Fail</span>
+      case 'rate_limited': return <span className="text-yellow-400">⏰ Rate limit</span>
+      case 'no_callable_model': return <span className="text-orange-400">⚠️ No model</span>
+      default: return null
+    }
+  }
 
   const handleToggleProvider = async (providerKey: string) => {
     const newEnabled = !config.providers[providerKey]?.enabled
@@ -57,52 +70,66 @@ export function Settings() {
           <div>
             <h3 className="text-lg font-semibold mb-3">🧩 Providers</h3>
             <div className="space-y-2">
-              {providerKeys.map(pk => {
-                const src = sources[pk]
-                const isEnabled = config.providers[pk]?.enabled !== false
-                const apiKey = config.apiKeys[pk]
-                
-                return (
-                  <div 
-                    key={pk}
-                    className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg"
-                  >
-                    <Switch
-                      checked={isEnabled}
-                      onCheckedChange={() => handleToggleProvider(pk)}
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium">{src.label}</div>
-                      <div className="text-xs text-zinc-400">{src.name}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {editingKey === pk ? (
-                        <>
-                          <Input
-                            type="password"
-                            value={editBuffer}
-                            onChange={(e) => setEditBuffer(e.target.value)}
-                            placeholder="Enter API key..."
-                            className="w-48"
-                            autoFocus
-                          />
-                          <Button size="sm" onClick={() => handleSaveKey(pk)}>Save</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)}>Cancel</Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-sm text-zinc-400 font-mono">
-                            {apiKey ? `••••${typeof apiKey === 'string' ? apiKey.slice(-4) : ''}` : '(no key)'}
-                          </span>
-                          <Button size="sm" variant="outline" onClick={() => handleStartEdit(pk)}>
-                            {apiKey ? 'Edit' : 'Add'}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+               {providerKeys.map(pk => {
+                 const src = sources[pk]
+                 const isEnabled = config.providers[pk]?.enabled !== false
+                 const apiKey = config.apiKeys[pk]
+                 const testStatus = providerTestResults[pk] || ''
+                 
+                 return (
+                   <div 
+                     key={pk}
+                     className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg"
+                   >
+                     <Switch
+                       checked={isEnabled}
+                       onCheckedChange={() => handleToggleProvider(pk)}
+                     />
+                     <div className="flex-1">
+                       <div className="font-medium">{src.label}</div>
+                       <div className="text-xs text-zinc-400">{src.name}</div>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       {editingKey === pk ? (
+                         <>
+                           <Input
+                             type="password"
+                             value={editBuffer}
+                             onChange={(e) => setEditBuffer(e.target.value)}
+                             placeholder="Enter API key..."
+                             className="w-48"
+                             autoFocus
+                           />
+                           <Button size="sm" onClick={() => handleSaveKey(pk)}>Save</Button>
+                           <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)}>Cancel</Button>
+                         </>
+                       ) : (
+                         <>
+                           <span className="text-sm text-zinc-400 font-mono">
+                             {apiKey ? `••••${typeof apiKey === 'string' ? apiKey.slice(-4) : ''}` : '(no key)'}
+                           </span>
+                           <Button size="sm" variant="outline" onClick={() => handleStartEdit(pk)}>
+                             {apiKey ? 'Edit' : 'Add'}
+                           </Button>
+                         </>
+                       )}
+                       {apiKey && (
+                         <>
+                           <Button 
+                             size="sm" 
+                             variant="outline" 
+                             onClick={() => testProvider(pk)}
+                             disabled={testStatus === 'pending'}
+                           >
+                             {testStatus === 'pending' ? '⏳' : '🔍'} Test
+                           </Button>
+                           {getStatusIcon(pk)}
+                         </>
+                       )}
+                     </div>
+                   </div>
+                 )
+               })}
             </div>
           </div>
 

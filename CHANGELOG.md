@@ -10,12 +10,15 @@
 - ⌨️ Added keyboard shortcuts in WebUI: `T` (cycle tier), `W` (cycle ping mode), `N` (cycle provider), `Arrow Up/Down` (navigate table), `Enter` (launch selected model).
 - 🔍 Added search input to filter models by name, provider, or model ID.
 - 🚀 Added "Launch Best" button in header that instantly launches the top-ranked model after current filters/sort.
+- 🧪 Added "Test" button in Settings to verify provider connectivity with live status (Testing/OK/Fail/Rate-limited/No model).
+- 📈 Providers now show test result directly in Settings.
 
 ### Changed
 
 - ⏱ Slowed down automatic ping updates in speed mode from 2 seconds to 5 seconds for both TUI and WebUI, reducing visual noise while still keeping data reasonably fresh.
 - 🔄 Tracked endpoint installs are now refreshed automatically on future launches so managed tool catalogs stay aligned when provider model lists evolve.
 - 🎯 Filter logic now respects favorites (always visible) and properly applies provider filter and hide-unconfigured toggle.
+- ⏳ Test connection now tries up to 3 models per provider for more reliable verification.
 
 ### Fixed
 

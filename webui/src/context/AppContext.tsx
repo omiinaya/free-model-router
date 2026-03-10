@@ -5,7 +5,7 @@ import type { ModelResult, SortColumn, SortDirection, PingMode, ToolMode, Config
 import { MODELS, sources } from '@/lib/sources'
 import { sortResults } from '@/lib/utils'
 import { PING_INTERVALS, TIER_CYCLE } from '@/constants'
-import { startPingLoop } from '@/lib/ping'
+import { startPingLoop, pingModel } from '@/lib/ping'
 import { toast } from 'sonner'
 
 interface AppState {
@@ -32,6 +32,7 @@ interface AppState {
   logOpen: boolean
   chatOpen: boolean
   searchQuery: string
+  providerTestResults: Record<string, string>
 }
 
 interface AppContextType extends AppState {
@@ -48,6 +49,8 @@ interface AppContextType extends AppState {
   toggleFavorite: (providerKey: string, modelId: string) => void
   launchModel: (providerKey: string, modelId: string) => Promise<void>
   launchBest: () => Promise<void>
+  setProviderTestResult: (providerKey: string, status: string) => void
+  testProvider: (providerKey: string) => Promise<void>
   setSearchQuery: (query: string) => void
   setSettingsOpen: (open: boolean) => void
   setHelpOpen: (open: boolean) => void
@@ -94,6 +97,7 @@ const initialState: AppState = {
   logOpen: false,
   chatOpen: false,
   searchQuery: '',
+  providerTestResults: {},
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -302,6 +306,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await launchModel(top.providerKey, top.modelId)
   }, [state.visibleResults, state.config.apiKeys, launchModel])
 
+  const setProviderTestResult = useCallback((providerKey: string, status: string) => {
+    setState(prev => ({
+      ...prev,
+      providerTestResults: {
+        ...prev.providerTestResults,
+        [providerKey]: status,
+      },
+    }))
+  }, [])
+
+  const testProvider = useCallback(async (providerKey: string) => {
+    const apiKeyRaw = state.config.apiKeys[providerKey]
+    if (!apiKeyRaw) {
+      setProviderTestResult(providerKey, 'fail')
+      toast.error(`No API key for ${providerKey}`)
+      return
+    }
+    // Support single key or array (multiple accounts) - use first key
+    const apiKey = Array.isArray(apiKeyRaw) ? apiKeyRaw[0] : apiKeyRaw
+
+    setProviderTestResult(providerKey, 'pending')
+
+    // Get models for this provider
+    const providerModels = sources[providerKey] as any
+    if (!providerModels || !Array.isArray(providerModels) || providerModels.length === 0) {
+      setProviderTestResult(providerKey, 'no_callable_model')
+      return
+    }
+
+    // Try up to 3 models (first ones)
+    const maxAttempts = Math.min(3, providerModels.length)
+    const attemptedCodes: string[] = []
+
+    for (let i = 0; i < maxAttempts; i++) {
+      const model = providerModels[i]
+      const modelId = model[0]
+      try {
+        const result = await pingModel(providerKey, modelId, apiKey)
+        attemptedCodes.push(result.code)
+        if (result.code === '200') {
+          setProviderTestResult(providerKey, 'ok')
+          toast.success(`${providerKey} connection OK`)
+          return
+        }
+        if (result.code === '401' || result.code === '403') {
+          setProviderTestResult(providerKey, 'fail')
+          toast.error(`${providerKey} auth failed`)
+          return
+        }
+      } catch (e) {
+        attemptedCodes.push('500')
+      }
+    }
+
+    // Determine outcome from attempted codes
+    const all429 = attemptedCodes.every(code => code === '429')
+    if (all429) {
+      setProviderTestResult(providerKey, 'rate_limited')
+      toast.warning(`${providerKey} rate limited`)
+      return
+    }
+
+    setProviderTestResult(providerKey, 'no_callable_model')
+    toast.error(`${providerKey}: no callable model`)
+  }, [state.config.apiKeys])
+
   const setSettingsOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, settingsOpen: open })), [])
   const setHelpOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, helpOpen: open })), [])
   const setRecommendOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, recommendOpen: open })), [])
@@ -493,6 +563,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toggleFavorite,
     launchModel,
     launchBest,
+    setProviderTestResult,
+    testProvider,
     setSearchQuery,
     setSettingsOpen,
     setHelpOpen,
