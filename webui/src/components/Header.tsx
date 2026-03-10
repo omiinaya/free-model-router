@@ -80,11 +80,9 @@ export function Header() {
 
           {/* Tool Mode Selector */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-2">
-                <span className="text-yellow-400">Z</span>
-                <span>Tool: {TOOL_METADATA[toolMode]?.label}</span>
-              </Button>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 h-8 px-3">
+              <span className="text-yellow-400">Z</span>
+              <span className="ml-2">Tool: {TOOL_METADATA[toolMode]?.label}</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {tools.map(tool => (
