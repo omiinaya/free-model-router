@@ -7,12 +7,14 @@ import { TierFilter } from '@/components/Filters/TierFilter'
 import { ProviderFilter } from '@/components/Filters/ProviderFilter'
 import { ConfiguredToggle } from '@/components/Filters/ConfiguredToggle'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export function Header() {
@@ -41,6 +43,9 @@ export function Header() {
     setLogOpen,
     chatOpen,
     setChatOpen,
+    searchQuery,
+    setSearchQuery,
+    launchBest,
   } = useApp()
 
   const [secondsUntilNext, setSecondsUntilNext] = useState<string>('--')
@@ -99,6 +104,18 @@ export function Header() {
             Free Coding Models
           </h1>
 
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+            <Input
+              type="text"
+              placeholder="Search models..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-8 w-[200px] bg-zinc-800 border-zinc-700"
+            />
+          </div>
+
           {/* Tool Mode Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 h-8 px-3">
@@ -154,6 +171,16 @@ export function Header() {
               )
             })}
           </div>
+
+          {/* Launch Best Button */}
+          <Button
+            size="sm"
+            variant="default"
+            onClick={launchBest}
+            className="h-8 bg-green-600 hover:bg-green-700 text-white"
+          >
+            🚀 Launch Best
+          </Button>
 
           {/* Ping Status */}
           <div className="text-sm text-zinc-400 flex items-center gap-2">

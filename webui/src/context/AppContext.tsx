@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import type { ModelResult, SortColumn, SortDirection, PingMode, ToolMode, Config } from '@/types'
-import { MODELS } from '@/lib/sources'
+import { MODELS, sources } from '@/lib/sources'
 import { sortResults } from '@/lib/utils'
 import { PING_INTERVALS, TIER_CYCLE } from '@/constants'
 import { startPingLoop } from '@/lib/ping'
@@ -31,6 +31,7 @@ interface AppState {
   bugOpen: boolean
   logOpen: boolean
   chatOpen: boolean
+  searchQuery: string
 }
 
 interface AppContextType extends AppState {
@@ -46,6 +47,8 @@ interface AppContextType extends AppState {
   setToolMode: (mode: ToolMode) => void
   toggleFavorite: (providerKey: string, modelId: string) => void
   launchModel: (providerKey: string, modelId: string) => Promise<void>
+  launchBest: () => Promise<void>
+  setSearchQuery: (query: string) => void
   setSettingsOpen: (open: boolean) => void
   setHelpOpen: (open: boolean) => void
   setRecommendOpen: (open: boolean) => void
@@ -90,6 +93,7 @@ const initialState: AppState = {
   bugOpen: false,
   logOpen: false,
   chatOpen: false,
+  searchQuery: '',
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -130,21 +134,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 
   const applyFiltersAndSort = useCallback(() => {
+    // Filter hidden rows first (from other sources)
     let filtered = state.results.filter(r => !r.hidden)
     
+    // Favorites are ALWAYS visible regardless of filters
+    const favoritesOnly = filtered.filter(r => r.isFavorite)
+    const nonFavorites = filtered.filter(r => !r.isFavorite)
+    
+    // Apply tier filter to non-favorites only
     const activeTier = TIER_CYCLE[state.tierFilter]
     if (activeTier) {
-      filtered = filtered.filter(r => r.tier === activeTier)
+      nonFavorites.forEach(r => {
+        r.hidden = r.tier !== activeTier
+      })
     }
     
-    filtered = sortResults(filtered, state.sortColumn, state.sortDirection)
+    // Apply provider filter to non-favorites only
+    if (state.providerFilter > 0) {
+      const providerKeys = Object.keys(sources)
+      const selectedProvider = providerKeys[state.providerFilter - 1]
+      if (selectedProvider) {
+        nonFavorites.forEach(r => {
+          r.hidden = r.hidden || r.providerKey !== selectedProvider
+        })
+      }
+    }
+    
+    // Apply hideUnconfigured to non-favorites only
+    if (state.hideUnconfigured) {
+      nonFavorites.forEach(r => {
+        const hasKey = !!state.config.apiKeys[r.providerKey]
+        r.hidden = r.hidden || !hasKey
+      })
+    }
+    
+    // Combine: favorites first (preserve order), then filtered non-favorites
+    let combined = [...favoritesOnly, ...nonFavorites.filter(r => !r.hidden)]
+    
+    // Apply search query (on both favorites and non-favorites)
+    if (state.searchQuery.trim()) {
+      const query = state.searchQuery.toLowerCase()
+      combined = combined.filter(r => 
+        r.label.toLowerCase().includes(query) ||
+        r.providerKey.toLowerCase().includes(query) ||
+        r.modelId.toLowerCase().includes(query)
+      )
+    }
+    
+    // Then sort
+    const sorted = sortResults(combined, state.sortColumn, state.sortDirection)
     
     setState(prev => ({
       ...prev,
-      visibleResults: filtered,
-      cursor: Math.min(prev.cursor, Math.max(0, filtered.length - 1)),
+      visibleResults: sorted,
+      cursor: Math.min(prev.cursor, Math.max(0, sorted.length - 1)),
     }))
-  }, [state.results, state.sortColumn, state.sortDirection, state.tierFilter])
+  }, [state.results, state.sortColumn, state.sortDirection, state.tierFilter, state.providerFilter, state.hideUnconfigured, state.config.apiKeys, state.searchQuery])
 
   useEffect(() => {
     applyFiltersAndSort()
@@ -244,6 +289,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // TODO: actual launch integration (OpenCode/OpenClaw/etc)
   }, [state.config])
 
+  const launchBest = useCallback(async () => {
+    if (state.visibleResults.length === 0) {
+      toast.error('No models match current filters')
+      return
+    }
+    const top = state.visibleResults[0]
+    if (!state.config.apiKeys[top.providerKey]) {
+      toast.error(`No API key configured for ${top.providerKey}`)
+      return
+    }
+    await launchModel(top.providerKey, top.modelId)
+  }, [state.visibleResults, state.config.apiKeys, launchModel])
+
   const setSettingsOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, settingsOpen: open })), [])
   const setHelpOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, helpOpen: open })), [])
   const setRecommendOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, recommendOpen: open })), [])
@@ -252,6 +310,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setBugOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, bugOpen: open })), [])
   const setLogOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, logOpen: open })), [])
   const setChatOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, chatOpen: open })), [])
+
+  const setSearchQuery = useCallback((query: string) => {
+    setState(prev => ({ ...prev, searchQuery: query }))
+  }, [])
 
   const refreshResults = useCallback(() => {
     applyFiltersAndSort()
@@ -430,6 +492,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToolMode,
     toggleFavorite,
     launchModel,
+    launchBest,
+    setSearchQuery,
     setSettingsOpen,
     setHelpOpen,
     setRecommendOpen,
