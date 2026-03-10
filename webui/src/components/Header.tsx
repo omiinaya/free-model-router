@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useEffect, useState } from 'react'
 
 export function Header() {
   const {
@@ -42,6 +43,28 @@ export function Header() {
     setChatOpen,
   } = useApp()
 
+  const [secondsUntilNext, setSecondsUntilNext] = useState<string>('--')
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = Date.now()
+      const timeSinceLastPing = now - lastPingTime
+      const remaining = Math.max(0, (pingInterval - timeSinceLastPing) / 1000)
+      const formatted = remaining.toFixed(1)
+      // Pad to 4 characters (e.g., "09.9" instead of "9.9") to prevent layout shifts
+      const padded = formatted.padStart(4, '0')
+      setSecondsUntilNext(padded)
+    }
+
+    // Update immediately
+    updateCountdown()
+
+    // Then update every second
+    const timer = setInterval(updateCountdown, 1000)
+
+    return () => clearInterval(timer)
+  }, [lastPingTime, pingInterval])
+
   const tools: ToolMode[] = [...TOOL_MODE_ORDER]
   const currentToolIdx = tools.indexOf(toolMode)
 
@@ -57,8 +80,6 @@ export function Header() {
     setPingMode(modes[nextIdx])
   }
 
-  const timeSinceLastPing = Date.now() - lastPingTime
-  const secondsUntilNext = Math.max(0, (pingInterval - timeSinceLastPing) / 1000).toFixed(1)
   const totalVisible = visibleResults.length
   const pending = visibleResults.filter(r => r.status === 'pending').length
   const completedPings = totalVisible - pending

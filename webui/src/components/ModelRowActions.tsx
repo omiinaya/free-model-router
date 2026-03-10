@@ -12,25 +12,13 @@ interface ModelRowActionsProps {
 }
 
 export function ModelRowActions({ modelId, providerKey, label }: ModelRowActionsProps) {
-  const { config } = useApp()
+  const { launchModel } = useApp()
   const [launching, setLaunching] = useState(false)
 
   const handleLaunch = async () => {
     setLaunching(true)
     try {
-      // Determine which API key to use
-      const apiKey = config.apiKeys[providerKey]
-      if (!apiKey) {
-        toast.error(`No API key configured for ${providerKey}`)
-        setLaunching(false)
-        return
-      }
-
-      // For now, just show a toast - we'll implement the actual launch later
-      toast.success(`Launching ${label} via ${providerKey}...`)
-      // TODO: OpenCode/Desktop integration
-    } catch (error) {
-      toast.error('Launch failed')
+      await launchModel(providerKey, modelId)
     } finally {
       setLaunching(false)
     }

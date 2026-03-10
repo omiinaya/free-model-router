@@ -4,12 +4,12 @@ import { useApp } from '@/context/AppContext'
 import { TIER_CYCLE, TIER_COLORS } from '@/constants'
 
 export function TierFilter() {
-  const { tierFilter, cycleTierFilter } = useApp()
+  const { tierFilter, setTierFilter } = useApp()
 
   return (
     <div className="flex items-center gap-1">
       <button
-        onClick={cycleTierFilter}
+        onClick={() => setTierFilter(0)}
         className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
           tierFilter === 0 
             ? 'bg-zinc-700 text-zinc-300' 
@@ -19,17 +19,14 @@ export function TierFilter() {
         All
       </button>
       {TIER_CYCLE.slice(1).map((tier, idx) => {
-        const isActive = tierFilter === idx + 1
+        const filterIndex = idx + 1
+        const isActive = tierFilter === filterIndex
         const color = TIER_COLORS[tier!] || '#808080'
         
         return (
           <button
             key={tier}
-            onClick={() => {
-              if (!isActive) {
-                cycleTierFilter()
-              }
-            }}
+            onClick={() => setTierFilter(filterIndex)}
             className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
             style={{
               backgroundColor: isActive ? `${color}30` : '',

@@ -52,7 +52,7 @@ export const PROVIDER_COLORS: Record<string, string> = {
 }
 
 export const PING_INTERVALS = {
-  speed: 2000,
+  speed: 5000,
   normal: 10000,
   slow: 30000,
   forced: 4000,

@@ -7,10 +7,18 @@
 ### Added
 
 - 🔌 Added a new `Y` install flow that pushes one configured provider directly into `OpenCode CLI`, `OpenCode Desktop`, `OpenClaw`, `Crush`, or `Goose`, with either the full catalog or a curated model subset.
+- ⌨️ Added keyboard shortcuts in WebUI: `T` (cycle tier), `W` (cycle ping mode), `N` (cycle provider), `Arrow Up/Down` (navigate table), `Enter` (launch selected model).
 
 ### Changed
 
+- ⏱ Slowed down automatic ping updates in speed mode from 2 seconds to 5 seconds for both TUI and WebUI, reducing visual noise while still keeping data reasonably fresh.
 - 🔄 Tracked endpoint installs are now refreshed automatically on future launches so managed tool catalogs stay aligned when provider model lists evolve.
+
+### Fixed
+
+- 🧊 Fixed hydration mismatch error in WebUI by making the ping countdown timer client-only (using useEffect + state) instead of calculating it during render with Date.now().
+- 🖱️ Fixed tier filter buttons to directly select the clicked tier instead of cycling through all tiers, making filter interactions more intuitive.
+- 📏 Fixed layout shift in countdown timer by padding the seconds display with leading zeros (e.g., "09.9" instead of "9.9") to maintain consistent width.
 
 ## 0.2.1
 

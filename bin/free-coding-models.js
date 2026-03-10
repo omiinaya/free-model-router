@@ -350,7 +350,7 @@ async function main() {
   // 📖 slow   = 30s after 5 minutes of inactivity
   // 📖 forced = 4s and ignores inactivity / auto slowdowns
   const PING_MODE_INTERVALS = {
-    speed: 2_000,
+    speed: 5_000,
     normal: 10_000,
     slow: 30_000,
     forced: 4_000,

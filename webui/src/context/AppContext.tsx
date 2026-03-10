@@ -3,9 +3,10 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import type { ModelResult, SortColumn, SortDirection, PingMode, ToolMode, Config } from '@/types'
 import { MODELS } from '@/lib/sources'
-import { sortResults, filterByTier } from '@/lib/utils'
+import { sortResults } from '@/lib/utils'
 import { PING_INTERVALS, TIER_CYCLE } from '@/constants'
-import { startPingLoop, pingModel } from '@/lib/ping'
+import { startPingLoop } from '@/lib/ping'
+import { toast } from 'sonner'
 
 interface AppState {
   results: ModelResult[]
@@ -36,12 +37,15 @@ interface AppContextType extends AppState {
   setCursor: (cursor: number) => void
   setSort: (column: SortColumn, direction?: SortDirection) => void
   setPingMode: (mode: PingMode) => void
+  cyclePingMode: () => void
+  setTierFilter: (filter: number) => void
   cycleTierFilter: () => void
   setProviderFilter: (filter: number) => void
   cycleProviderFilter: () => void
   toggleHideUnconfigured: () => void
   setToolMode: (mode: ToolMode) => void
   toggleFavorite: (providerKey: string, modelId: string) => void
+  launchModel: (providerKey: string, modelId: string) => Promise<void>
   setSettingsOpen: (open: boolean) => void
   setHelpOpen: (open: boolean) => void
   setRecommendOpen: (open: boolean) => void
@@ -51,8 +55,8 @@ interface AppContextType extends AppState {
    setLogOpen: (open: boolean) => void
    setChatOpen: (open: boolean) => void
    refreshResults: () => void
-  setConfig: (config: Config) => void
-  saveConfig: (newConfig: Config) => Promise<void>
+   setConfig: (config: Config) => void
+   saveConfig: (newConfig: Config) => Promise<void>
 }
 
 const defaultConfig: Config = {
@@ -92,6 +96,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const pingLoopRef = useRef<(() => void) | null>(null)
+  // Ref for latest visibleResults to use in hotkey handler without re-subscribing
+  const visibleResultsRef = useRef<ModelResult[]>([])
+  const cursorRef = useRef<number>(0)
 
   const [state, setState] = useState<AppState>(() => {
     const results = MODELS.map(([modelId, label, tier, sweScore, ctx, providerKey], idx) => ({
@@ -163,6 +170,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const cyclePingMode = useCallback(() => {
+    const modes: PingMode[] = ['speed', 'normal', 'slow', 'forced']
+    setState(prev => {
+      const currentIdx = modes.indexOf(prev.pingMode)
+      const nextIdx = (currentIdx + 1) % modes.length
+      const nextMode = modes[nextIdx]
+      return {
+        ...prev,
+        pingMode: nextMode,
+        pingInterval: PING_INTERVALS[nextMode],
+      }
+    })
+  }, [])
+
+  const setTierFilter = useCallback((filter: number) => {
+    setState(prev => ({ ...prev, tierFilter: filter }))
+  }, [])
+
   const cycleTierFilter = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -208,6 +233,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { ...prev, results: newResults, config: newConfig }
     })
   }, [])
+
+  const launchModel = useCallback(async (providerKey: string, modelId: string) => {
+    const apiKey = state.config.apiKeys[providerKey]
+    if (!apiKey) {
+      toast.error(`No API key configured for ${providerKey}`)
+      return
+    }
+    toast.success(`Launching ${modelId} via ${providerKey}...`)
+    // TODO: actual launch integration (OpenCode/OpenClaw/etc)
+  }, [state.config])
 
   const setSettingsOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, settingsOpen: open })), [])
   const setHelpOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, helpOpen: open })), [])
@@ -322,17 +357,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [state.results, state.pingMode, handlePingComplete])
 
+  // Keep refs in sync for hotkey handler
+  useEffect(() => {
+    visibleResultsRef.current = state.visibleResults
+  }, [state.visibleResults])
+
+  useEffect(() => {
+    cursorRef.current = state.cursor
+  }, [state.cursor])
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore modifier keys
+      if (e.ctrlKey || e.altKey || e.metaKey) return
+
+      // Ignore when typing in input/textarea/contenteditable
+      const target = e.target as HTMLElement
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      if (isInput) return
+
+      const key = e.key.toLowerCase()
+
+      switch (key) {
+        case 't':
+          cycleTierFilter()
+          break
+        case 'w':
+          cyclePingMode()
+          break
+        case 'n':
+          cycleProviderFilter()
+          break
+        case 'arrowup':
+          e.preventDefault()
+          const newUp = Math.max(0, cursorRef.current - 1)
+          setCursor(newUp)
+          break
+        case 'arrowdown':
+          e.preventDefault()
+          const newDown = Math.min(visibleResultsRef.current.length - 1, cursorRef.current + 1)
+          setCursor(newDown)
+          break
+        case 'enter':
+          {
+            const idx = cursorRef.current
+            const results = visibleResultsRef.current
+            if (results[idx]) {
+              const { providerKey, modelId } = results[idx]
+              launchModel(providerKey, modelId).catch(console.error)
+            }
+          }
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [cycleTierFilter, cyclePingMode, cycleProviderFilter, setCursor, launchModel])
+
   const value: AppContextType = {
     ...state,
     setCursor,
     setSort,
     setPingMode,
+    cyclePingMode,
+    setTierFilter,
     cycleTierFilter,
     setProviderFilter,
     cycleProviderFilter,
     toggleHideUnconfigured,
     setToolMode,
     toggleFavorite,
+    launchModel,
     setSettingsOpen,
     setHelpOpen,
     setRecommendOpen,

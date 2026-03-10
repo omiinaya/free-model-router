@@ -48,7 +48,7 @@ export function startPingLoop(
 ): () => void {
   const getInterval = () => {
     switch (mode) {
-      case 'speed': return 2000
+      case 'speed': return 5000
       case 'normal': return 10000
       case 'slow': return 30000
       case 'forced': return 4000
@@ -92,7 +92,7 @@ export function startPingLoop(
   const interval = setInterval(processQueue, getInterval())
   // Speed mode: ping aggressively for first 60 seconds
   if (mode === 'speed') {
-    const speedInterval = setInterval(processQueue, 2000)
+    const speedInterval = setInterval(processQueue, 5000)
     setTimeout(() => {
       clearInterval(speedInterval)
     }, 60000)
