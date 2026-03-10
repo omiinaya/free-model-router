@@ -19,158 +19,24 @@ export function ModelTable() {
     sortColumn, 
     sortDirection,
     toggleFavorite,
-    setSettingsOpen,
-    setHelpOpen,
-    setRecommendOpen,
-    setInstallOpen,
-    setFeatureOpen,
-    setBugOpen,
-    setLogOpen,
-    cycleTierFilter,
-    toggleHideUnconfigured,
   } = useApp()
 
   const tableRef = useRef<HTMLDivElement>(null)
-  const [frame, setFrame] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame(f => (f + 1) % 10)
-    }, 1000 / 12)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-
-      switch (e.key) {
-        case 'ArrowUp':
-          e.preventDefault()
-          setCursor(Math.max(0, cursor - 1))
-          break
-        case 'ArrowDown':
-          e.preventDefault()
-          setCursor(Math.min(visibleResults.length - 1, cursor + 1))
-          break
-        case 'Enter':
-          e.preventDefault()
-          if (visibleResults[cursor]) {
-            console.log('Selected:', visibleResults[cursor])
-          }
-          break
-        case 'r':
-        case 'R':
-          setSort('rank')
-          break
-        case 't':
-        case 'T':
-          cycleTierFilter()
-          break
-        case 'o':
-        case 'O':
-          break
-        case 'm':
-        case 'M':
-          setSort('model')
-          break
-        case 'l':
-        case 'L':
-          setSort('ping')
-          break
-        case 'a':
-        case 'A':
-          setSort('avg')
-          break
-        case 's':
-        case 'S':
-          setSort('swe')
-          break
-        case 'c':
-        case 'C':
-          setSort('ctx')
-          break
-        case 'h':
-        case 'H':
-          setSort('status')
-          break
-        case 'v':
-        case 'V':
-          setSort('verdict')
-          break
-        case 'b':
-        case 'B':
-          setSort('stability')
-          break
-        case 'u':
-        case 'U':
-          setSort('uptime')
-          break
-        case 'g':
-        case 'G':
-          setSort('usage')
-          break
-        case 'f':
-        case 'F':
-          if (visibleResults[cursor]) {
-            const r = visibleResults[cursor]
-            toggleFavorite(r.providerKey, r.modelId)
-          }
-          break
-        case 'e':
-        case 'E':
-          toggleHideUnconfigured()
-          break
-        case 'p':
-        case 'P':
-          if (!e.shiftKey) setSettingsOpen(true)
-          break
-        case 'k':
-        case 'K':
-        case 'Escape':
-          setHelpOpen(false)
-          break
-        case 'q':
-        case 'Q':
-          setRecommendOpen(true)
-          break
-        case 'y':
-        case 'Y':
-          setInstallOpen(true)
-          break
-        case 'j':
-        case 'J':
-          setFeatureOpen(true)
-          break
-        case 'i':
-        case 'I':
-          setBugOpen(true)
-          break
-        case 'x':
-        case 'X':
-          setLogOpen(true)
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cursor, visibleResults, setCursor, setSort, cycleTierFilter, toggleHideUnconfigured, toggleFavorite, setSettingsOpen, setHelpOpen, setRecommendOpen, setInstallOpen, setFeatureOpen, setBugOpen, setLogOpen])
 
   const handleSort = (column: string) => {
     setSort(column as any)
   }
 
-  const renderCell = (r: typeof visibleResults[0], col: typeof COLUMNS[number]) => {
+  const renderCell = (r: typeof visibleResults[number], col: typeof COLUMNS[number]) => {
     switch (col.key) {
       case 'rank':
-        return <span className="text-zinc-400">#{r.idx}</span>
+        return <span className="font-mono text-zinc-400 text-sm">#{r.idx}</span>
       case 'tier':
         return <TierBadge tier={r.tier} />
       case 'swe':
-        return <span className="text-zinc-300">{r.sweScore}</span>
+        return <span className="font-mono text-zinc-300 text-sm">{r.sweScore}</span>
       case 'ctx':
-        return <span className="text-zinc-400">{r.ctx}</span>
+        return <span className="font-mono text-zinc-400 text-sm">{r.ctx}</span>
       case 'model':
         return (
           <div className="flex items-center gap-2">
@@ -179,11 +45,12 @@ export function ModelTable() {
                 e.stopPropagation()
                 toggleFavorite(r.providerKey, r.modelId)
               }}
-              className="text-lg focus:outline-none"
+              className="text-lg focus:outline-none hover:scale-110 transition-transform"
+              aria-label={r.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
               {r.isFavorite ? '⭐' : '☆'}
             </button>
-            <span className="text-white font-medium">{r.label}</span>
+            <span className="text-white font-medium truncate max-w-[200px]">{r.label}</span>
           </div>
         )
       case 'provider':
@@ -193,75 +60,72 @@ export function ModelTable() {
           return <span className="text-yellow-400 animate-pulse">pinging...</span>
         }
         const latestPing = r.pings[r.pings.length - 1]
-        if (!latestPing) return <span className="text-zinc-500">—</span>
+        if (!latestPing) return <span className="font-mono text-zinc-600">--</span>
         const latestMs = latestPing.ms
         const latestColor = latestMs < 500 ? 'text-green-400' : latestMs < 1500 ? 'text-yellow-400' : 'text-red-400'
-        return <span className={latestColor}>{latestMs}ms</span>
+        return <span className={`font-mono text-sm ${latestColor}`}>{latestMs}ms</span>
       case 'avg':
         const avg = getAvg(r)
-        if (avg === Infinity) return <span className="text-zinc-500">—</span>
+        if (avg === Infinity) return <span className="font-mono text-zinc-600">--</span>
         const avgColor = avg < 500 ? 'text-green-400' : avg < 1500 ? 'text-yellow-400' : 'text-red-400'
-        return <span className={avgColor}>{avg}ms</span>
+        return <span className={`font-mono text-sm ${avgColor}`}>{avg}ms</span>
       case 'status':
         return <StatusBadge status={r.status} />
       case 'verdict':
         return <VerdictBadge verdict={getVerdict(r)} />
       case 'stability':
         const stability = getStabilityScore(r)
-        if (stability === -1) return <span className="text-zinc-500">—</span>
+        if (stability === -1) return <span className="font-mono text-zinc-600">--</span>
         return (
           <div className="flex items-center gap-2">
-            <div className="w-12 h-2 bg-zinc-700 rounded-full overflow-hidden">
+            <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-red-500 to-green-500"
+                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"
                 style={{ width: `${stability}%` }}
               />
             </div>
-            <span className="text-zinc-400 text-xs">{stability}</span>
+            <span className="font-mono text-xs text-zinc-400">{stability}</span>
           </div>
         )
       case 'uptime':
         const uptime = getUptime(r)
-        return <span className="text-zinc-400">{uptime}%</span>
+        return <span className="font-mono text-zinc-400 text-sm">{uptime}%</span>
       case 'used':
-        return <span className="text-zinc-500">--</span>
+        return <span className="font-mono text-zinc-600 text-sm">--</span>
       case 'usage':
-        if (r.usagePercent === undefined) return <span className="text-zinc-500">--</span>
-        return <span className="text-zinc-400">{r.usagePercent}%</span>
+        if (r.usagePercent === undefined) return <span className="font-mono text-zinc-600 text-sm">--</span>
+        return <span className="font-mono text-zinc-400 text-sm">{r.usagePercent}%</span>
       case 'launch':
-        return (
-          <ModelRowActions
-            modelId={r.modelId}
-            providerKey={r.providerKey}
-            label={r.label}
-          />
-        )
+        return <ModelRowActions modelId={r.modelId} providerKey={r.providerKey} label={r.label} />
       default:
         return null
     }
   }
 
   return (
-    <div ref={tableRef} className="flex-1 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-zinc-900 z-10">
-          <tr className="text-left text-zinc-400 border-b border-zinc-800">
+    <div 
+      ref={tableRef} 
+      className="flex-1 overflow-auto bg-zinc-950"
+    >
+      <table className="w-full text-sm border-collapse">
+        <thead className="sticky top-0 bg-zinc-900 z-10 border-b border-zinc-800">
+          <tr>
             {COLUMNS.map(col => (
               <th 
                 key={col.key}
-                className={`px-3 py-2 font-medium cursor-pointer hover:text-white transition-colors ${
-                  sortColumn === col.key ? 'text-white' : ''
-                }`}
-                style={{ width: col.width * 4 }}
+                className="px-3 py-2.5 font-semibold text-zinc-300 cursor-pointer hover:text-white transition-colors select-none border-b border-zinc-800"
+                style={{ width: col.width * 5 }}
                 onClick={() => handleSort(col.key)}
               >
                 <div className="flex items-center gap-1">
                   <span>{col.label}</span>
                   {col.shortKey && (
-                    <span className="text-zinc-600 text-xs">[{col.shortKey}]</span>
+                    <span className="text-zinc-600 text-[10px] font-mono">[{col.shortKey}]</span>
                   )}
                   {sortColumn === col.key && (
-                    <span className="text-zinc-300">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-zinc-300 ml-1">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
                   )}
                 </div>
               </th>
@@ -272,13 +136,14 @@ export function ModelTable() {
           {visibleResults.map((r, idx) => (
             <tr
               key={`${r.providerKey}-${r.modelId}`}
-              className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors cursor-pointer ${
-                idx === cursor ? 'bg-zinc-800/50' : ''
+              data-row-index={idx}
+              className={`border-b border-zinc-900 hover:bg-zinc-900/50 transition-colors cursor-pointer ${
+                idx === cursor ? 'bg-zinc-800/60' : ''
               }`}
               onClick={() => setCursor(idx)}
             >
               {COLUMNS.map(col => (
-                <td key={col.key} className="px-3 py-2">
+                <td key={col.key} className="px-3 py-2.5 align-middle">
                   {renderCell(r, col)}
                 </td>
               ))}
