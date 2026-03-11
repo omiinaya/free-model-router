@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Search } from 'lucide-react'
+import { Search, SignalHigh, SignalMedium, SignalLow, Signal } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export function Header() {
@@ -167,22 +167,17 @@ export function Header() {
               <Button size="sm" variant="outline" className="h-8">
                 <span className="flex items-center gap-2">
                   {(() => {
-                    const colors: Record<string, string> = {
-                      speed: 'bg-orange-500',
-                      normal: 'bg-blue-500',
-                      slow: 'bg-purple-500',
-                      forced: 'bg-red-500'
+                    const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
+                      speed: { Icon: SignalHigh, color: 'text-green-400', label: 'Speed' },
+                      normal: { Icon: Signal, color: 'text-zinc-300', label: 'Normal' },
+                      slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
+                      forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
                     }
-                    const labels: Record<string, string> = {
-                      speed: 'Speed',
-                      normal: 'Normal',
-                      slow: 'Slow',
-                      forced: 'Forced'
-                    }
+                    const { Icon, color, label } = pingModeInfo[pingMode]
                     return (
                       <>
-                        <span className={`w-2 h-2 rounded-full ${colors[pingMode]}`} />
-                        <span>{labels[pingMode]}</span>
+                        <Icon className={`w-4 h-4 ${color}`} />
+                        <span>{label}</span>
                       </>
                     )
                   })()}
@@ -190,23 +185,27 @@ export function Header() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {(['speed', 'normal', 'slow', 'forced'] as Array<PingMode>).map(mode => (
-                <DropdownMenuItem
-                  key={mode}
-                  onClick={() => setPingMode(mode)}
-                  className={pingMode === mode ? 'bg-zinc-800' : ''}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${
-                      mode === 'speed' ? 'bg-orange-500' :
-                      mode === 'normal' ? 'bg-blue-500' :
-                      mode === 'slow' ? 'bg-purple-500' :
-                      'bg-red-500'
-                    }`} />
-                    <span>{mode.charAt(0).toUpperCase() + mode.slice(1)}</span>
-                  </span>
-                </DropdownMenuItem>
-              ))}
+              {(['speed', 'normal', 'slow', 'forced'] as Array<PingMode>).map(mode => {
+                const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
+                  speed: { Icon: SignalHigh, color: 'text-green-400', label: 'Speed' },
+                  normal: { Icon: Signal, color: 'text-zinc-300', label: 'Normal' },
+                  slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
+                  forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
+                }
+                const { Icon, color, label } = pingModeInfo[mode]
+                return (
+                  <DropdownMenuItem
+                    key={mode}
+                    onClick={() => setPingMode(mode)}
+                    className={pingMode === mode ? 'bg-zinc-800' : ''}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon className={`w-4 h-4 ${color}`} />
+                      <span>{label}</span>
+                    </span>
+                  </DropdownMenuItem>
+                )
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 
