@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useApp } from '@/context/AppContext'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -10,11 +10,14 @@ import type { ModelResult } from '@/types'
 
 export function Recommend() {
   const { recommendOpen, setRecommendOpen, config } = useApp() as any
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(0) // 0: task, 1: priority/context, 2: analyzing, 3: results
   const [task, setTask] = useState('quickfix')
   const [priority, setPriority] = useState('balanced')
   const [context, setContext] = useState('medium')
   const [recommendations, setRecommendations] = useState<{ result: ModelResult; score: number }[]>([])
+  const [analyzingElapsed, setAnalyzingElapsed] = useState(0)
+  const [analyzingProgress, setAnalyzingProgress] = useState(0)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const buildModels = (): ModelResult[] => {
     const arr: ModelResult[] = []
@@ -44,11 +47,37 @@ export function Recommend() {
   }
 
   const compute = () => {
-    const models = buildModels()
-    const recs = getTopRecommendations(models, task, priority, context, 3)
-    setRecommendations(recs)
-    setStep(2)
+    setStep(2) // analyzing
+    setAnalyzingElapsed(0)
+    setAnalyzingProgress(0)
+
+    // Simulate analysis with progress bar and timer
+    timerRef.current = setInterval(() => {
+      setAnalyzingElapsed(prev => {
+        const newElapsed = prev + 1
+        // Progress: 0-100% over about 8 seconds
+        const newProgress = Math.min(100, (newElapsed / 8) * 100)
+        setAnalyzingProgress(newProgress)
+
+        if (newElapsed >= 8) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          // Actual computation
+          const models = buildModels()
+          const recs = getTopRecommendations(models, task, priority, context, 3)
+          setRecommendations(recs)
+          setStep(3) // results
+        }
+        return newElapsed
+      })
+    }, 1000)
   }
+
+  // Cleanup timer on unmount or step change
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
 
   return (
     <Dialog open={recommendOpen} onOpenChange={setRecommendOpen}>
@@ -100,6 +129,23 @@ export function Recommend() {
           </div>
         )}
         {step === 2 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span>Analyzing...</span>
+              <span>{analyzingElapsed}s</span>
+            </div>
+            <div className="h-2 bg-zinc-700 rounded overflow-hidden">
+              <div 
+                className="h-full bg-green-500 transition-all duration-1000 ease-linear"
+                style={{ width: `${analyzingProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-zinc-400">
+              Evaluating models based on your criteria... This may take a few seconds.
+            </p>
+          </div>
+        )}
+        {step === 3 && (
           <div className="space-y-4">
             <p className="text-sm">Top 3 recommendations:</p>
             {recommendations.map((rec, idx) => (
