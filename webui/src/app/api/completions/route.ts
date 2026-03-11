@@ -242,6 +242,7 @@ async function proxyRequest(
     headers['X-Title'] = 'free-coding-models'
   }
 
+  const startTime = Date.now()
   const response = await fetch(src.url, {
     method: 'POST',
     headers,
@@ -250,23 +251,57 @@ async function proxyRequest(
       model: modelId,
     }),
   })
-
-  // Log usage
-  logRequest(providerKey, modelId, response.status, body.messages?.length || 0)
+  const latency = Date.now() - startTime
 
   const data = await response.json()
+  const tokens = data.usage?.total_tokens || 0
+  // Extract route path from provider URL
+  const route = (() => {
+    try {
+      const url = new URL(src.url)
+      return url.pathname
+    } catch {
+      return src.url
+    }
+  })()
+
+  // Log usage
+  logRequest(providerKey, modelId, response.status, body.messages?.length || 0, latency, tokens, route)
+
   return NextResponse.json(data, { status: response.status })
 }
 
-async function logRequest(providerKey: string, modelId: string, status: number, messagesCount: number) {
+interface LogEntry {
+  timestamp: string
+  provider: string
+  model: string
+  status: number
+  messages: number
+  latency?: number
+  tokens?: number
+  route?: string
+}
+
+async function logRequest(
+  providerKey: string,
+  modelId: string,
+  status: number,
+  messagesCount: number,
+  latency: number,
+  tokens: number,
+  route: string
+) {
   try {
     const logPath = join(homedir(), '.free-coding-models-requests.jsonl')
-    const entry = {
+    const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       provider: providerKey,
       model: modelId,
       status,
       messages: messagesCount,
+      latency,
+      tokens,
+      route,
     }
     await appendFile(logPath, JSON.stringify(entry) + '\n', { flag: 'a' })
   } catch (error) {
