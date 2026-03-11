@@ -168,8 +168,8 @@ export function Header() {
                 <span className="flex items-center gap-2">
                   {(() => {
                     const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
-                      speed: { Icon: SignalHigh, color: 'text-green-400', label: 'Speed' },
-                      normal: { Icon: Signal, color: 'text-zinc-300', label: 'Normal' },
+                      speed: { Icon: Signal, color: 'text-green-400', label: 'Speed' },
+                      normal: { Icon: SignalHigh, color: 'text-zinc-300', label: 'Normal' },
                       slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
                       forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
                     }
@@ -187,8 +187,8 @@ export function Header() {
             <DropdownMenuContent align="start">
               {(['speed', 'normal', 'slow', 'forced'] as Array<PingMode>).map(mode => {
                 const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
-                  speed: { Icon: SignalHigh, color: 'text-green-400', label: 'Speed' },
-                  normal: { Icon: Signal, color: 'text-zinc-300', label: 'Normal' },
+                  speed: { Icon: Signal, color: 'text-green-400', label: 'Speed' },
+                  normal: { Icon: SignalHigh, color: 'text-zinc-300', label: 'Normal' },
                   slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
                   forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
                 }
