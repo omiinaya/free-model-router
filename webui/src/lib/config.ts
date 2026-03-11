@@ -10,12 +10,18 @@ export interface Config {
   favorites: string[]
   settings?: Record<string, any>
   fcmProxyKey?: string
+  activeProfile?: string | null
+  profiles?: Record<string, any>
 }
 
 export async function readConfig(): Promise<Config> {
   try {
     const data = await readFile(CONFIG_PATH, 'utf-8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data)
+    // Ensure required fields exist
+    if (!parsed.profiles) parsed.profiles = {}
+    if (typeof parsed.activeProfile !== 'string') parsed.activeProfile = null
+    return parsed as Config
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       return {
@@ -24,6 +30,8 @@ export async function readConfig(): Promise<Config> {
         favorites: [],
         settings: {},
         fcmProxyKey: '',
+        activeProfile: null,
+        profiles: {},
       }
     }
     throw error

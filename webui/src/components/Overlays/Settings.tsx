@@ -10,12 +10,16 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 
 export function Settings() {
-  const { settingsOpen, setSettingsOpen, config, saveConfig, providerTestResults, testProvider } = useApp()
+  const { settingsOpen, setSettingsOpen, config, saveConfig, providerTestResults, testProvider } = useApp() as any
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editBuffer, setEditBuffer] = useState('')
   const [proxyKeyInput, setProxyKeyInput] = useState(config.fcmProxyKey || '')
+  const [newProfileName, setNewProfileName] = useState('')
 
   const providerKeys = Object.keys(sources)
+
+  const profileNames = Object.keys(config.profiles || {})
+  const activeProfile = config.activeProfile
 
   const getStatusIcon = (pk: string) => {
     const status = providerTestResults[pk]
@@ -28,6 +32,42 @@ export function Settings() {
       case 'no_callable_model': return <span className="text-orange-400">⚠️ No model</span>
       default: return null
     }
+  }
+
+  // Profile management
+  const handleSaveProfile = async () => {
+    if (!newProfileName.trim()) {
+      toast.error('Enter a profile name')
+      return
+    }
+    const snapshot = {
+      apiKeys: config.apiKeys,
+      providers: config.providers,
+      favorites: config.favorites,
+      settings: config.settings || {},
+    }
+    const newProfiles = { ...config.profiles, [newProfileName.trim()]: snapshot }
+    const newConfig = { ...config, profiles: newProfiles, activeProfile: newProfileName.trim() }
+    await saveConfig(newConfig)
+    setNewProfileName('')
+    toast.success(`Profile "${newProfileName}" saved`)
+  }
+
+  const handleLoadProfile = async (name: string) => {
+    const profile = config.profiles[name]
+    if (!profile) return
+    const newConfig = { ...config, ...profile, activeProfile: name }
+    await saveConfig(newConfig)
+    toast.success(`Loaded profile "${name}"`)
+  }
+
+  const handleDeleteProfile = async (name: string) => {
+    if (!confirm(`Delete profile "${name}"?`)) return
+    const newProfiles = { ...config.profiles }
+    delete newProfiles[name]
+    const newConfig = { ...config, profiles: newProfiles, activeProfile: config.activeProfile === name ? null : config.activeProfile }
+    await saveConfig(newConfig)
+    toast.success(`Deleted profile "${name}"`)
   }
 
   const handleToggleProvider = async (providerKey: string) => {
@@ -161,32 +201,62 @@ export function Settings() {
              </div>
            </div>
 
-           <div className="border-t border-zinc-700 pt-4">
-             <h3 className="text-lg font-semibold mb-3">🔑 FCM Proxy API Key</h3>
-             <p className="text-sm text-zinc-400 mb-2">
-               Set a single API key for external tools to access /api/completions. They will use this key to authenticate with FCM as a unified provider endpoint.
-             </p>
-             <div className="flex items-center gap-3">
-               <Input
-                 type="password"
-                 value={proxyKeyInput}
-                 onChange={(e) => setProxyKeyInput(e.target.value)}
-                 placeholder="Enter FCM proxy API key..."
-                 className="flex-1"
-               />
-               <Button
-                 size="sm"
-                 onClick={async () => {
-                   const newConfig = { ...config, fcmProxyKey: proxyKeyInput }
-                   await saveConfig(newConfig)
-                   toast.success('FCM proxy key saved')
-                 }}
-               >
-                 Save
-               </Button>
-             </div>
-           </div>
-         </div>
+            <div className="border-t border-zinc-700 pt-4">
+              <h3 className="text-lg font-semibold mb-3">🔑 FCM Proxy API Key</h3>
+              <p className="text-sm text-zinc-400 mb-2">
+                Set a single API key for external tools to access /api/completions. They will use this key to authenticate with FCM as a unified provider endpoint.
+              </p>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="password"
+                  value={proxyKeyInput}
+                  onChange={(e) => setProxyKeyInput(e.target.value)}
+                  placeholder="Enter FCM proxy API key..."
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const newConfig = { ...config, fcmProxyKey: proxyKeyInput }
+                    await saveConfig(newConfig)
+                    toast.success('FCM proxy key saved')
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {/* Profiles */}
+            <div className="border-t border-zinc-700 pt-4">
+              <h3 className="text-lg font-semibold mb-3">👤 Profiles</h3>
+              {activeProfile && (
+                <div className="mb-2 text-sm">
+                  <span className="text-zinc-400">Active:</span> <span className="text-yellow-400">{activeProfile}</span>
+                </div>
+              )}
+              <div className="flex gap-2 mb-4">
+                <Input
+                  placeholder="Profile name..."
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  className="w-48"
+                />
+                <Button size="sm" onClick={handleSaveProfile}>Save as Profile</Button>
+              </div>
+              {profileNames.length > 0 && (
+                <div className="space-y-2">
+                  {profileNames.map(name => (
+                    <div key={name} className="flex items-center gap-2 p-2 bg-zinc-800 rounded">
+                      <span className="flex-1 font-mono text-sm">{name}</span>
+                      <Button size="sm" variant="outline" onClick={() => handleLoadProfile(name)}>Load</Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteProfile(name)}>Delete</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
       </DialogContent>
     </Dialog>
   )
