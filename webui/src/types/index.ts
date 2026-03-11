@@ -68,7 +68,7 @@ export interface EndpointInstall {
   lastSyncedAt: string
 }
 
-export type SortColumn = 'rank' | 'tier' | 'swe' | 'ctx' | 'origin' | 'model' | 'ping' | 'avg' | 'status' | 'verdict' | 'stability' | 'uptime' | 'usage'
+export type SortColumn = 'rank' | 'tier' | 'swe' | 'ctx' | 'origin' | 'model' | 'ping' | 'avg' | 'status' | 'verdict' | 'stability' | 'uptime' | 'used' | 'usage'
 
 export type SortDirection = 'asc' | 'desc'
 

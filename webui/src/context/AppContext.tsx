@@ -33,6 +33,7 @@ interface AppState {
   chatOpen: boolean
   searchQuery: string
   providerTestResults: Record<string, string>
+  usageByModel: Record<string, number>
 }
 
 interface AppContextType extends AppState {
@@ -99,6 +100,7 @@ const initialState: AppState = {
   chatOpen: false,
   searchQuery: '',
   providerTestResults: {},
+  usageByModel: {},
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -176,25 +178,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Combine: favorites first (preserve order), then filtered non-favorites
     let combined = [...favoritesOnly, ...nonFavorites.filter(r => !r.hidden)]
     
-    // Apply search query (on both favorites and non-favorites)
-    if (state.searchQuery.trim()) {
-      const query = state.searchQuery.toLowerCase()
-      combined = combined.filter(r => 
-        r.label.toLowerCase().includes(query) ||
-        r.providerKey.toLowerCase().includes(query) ||
-        r.modelId.toLowerCase().includes(query)
-      )
-    }
-    
-    // Then sort
-    const sorted = sortResults(combined, state.sortColumn, state.sortDirection)
+     // Apply search query (on both favorites and non-favorites)
+     if (state.searchQuery.trim()) {
+       const query = state.searchQuery.toLowerCase()
+       combined = combined.filter(r => 
+         r.label.toLowerCase().includes(query) ||
+         r.providerKey.toLowerCase().includes(query) ||
+         r.modelId.toLowerCase().includes(query)
+       )
+     }
+     
+     // Attach token usage totals from log
+     combined = combined.map(r => ({
+       ...r,
+       totalTokens: state.usageByModel[`${r.providerKey}::${r.modelId}`] ?? 0
+     }))
+     
+     // Then sort
+     const sorted = sortResults(combined, state.sortColumn, state.sortDirection)
     
     setState(prev => ({
       ...prev,
       visibleResults: sorted,
       cursor: Math.min(prev.cursor, Math.max(0, sorted.length - 1)),
     }))
-  }, [state.results, state.sortColumn, state.sortDirection, state.tierFilter, state.providerFilter, state.hideUnconfigured, state.config.apiKeys, state.searchQuery])
+   }, [state.results, state.sortColumn, state.sortDirection, state.tierFilter, state.providerFilter, state.hideUnconfigured, state.config.apiKeys, state.searchQuery, state.usageByModel])
 
   useEffect(() => {
     applyFiltersAndSort()
@@ -386,6 +394,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, searchQuery: query }))
   }, [])
 
+  const fetchUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/usage')
+      if (res.ok) {
+        const { usageByModel } = await res.json()
+        setState(prev => ({ ...prev, usageByModel }))
+      }
+    } catch (e) {
+      console.error('Failed to fetch usage:', e)
+    }
+  }, [])
+
   const refreshResults = useCallback(() => {
     applyFiltersAndSort()
   }, [applyFiltersAndSort])
@@ -425,9 +445,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
        }
      }
      load()
-   }, [setConfig])
+    }, [setConfig])
 
-   // Auto-save config when it changes
+    // Load token usage on mount
+    useEffect(() => {
+      fetchUsage()
+    }, [fetchUsage])
+
+    // Auto-save config when it changes
    useEffect(() => {
      const save = async () => {
       try {

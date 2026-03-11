@@ -135,6 +135,10 @@ export function sortResults(
         aVal = getUptime(a)
         bVal = getUptime(b)
         break
+      case 'used':
+        aVal = a.totalTokens ?? 0
+        bVal = b.totalTokens ?? 0
+        break
       case 'usage':
         aVal = a.usagePercent ?? 0
         bVal = b.usagePercent ?? 0
@@ -267,7 +271,9 @@ export function formatCtxWindow(value: number): string {
 }
 
 export function formatTokenTotal(totalTokens: number | undefined): string {
-  if (!totalTokens || totalTokens <= 0) return '--'
+  if (totalTokens === undefined || totalTokens === null) return '--'
+  if (totalTokens < 0) return '--'
+  if (totalTokens === 0) return '0'
   if (totalTokens >= 999500) return `${(totalTokens / 1000000).toFixed(2)}M`
   if (totalTokens >= 1000) return `${(totalTokens / 1000).toFixed(2)}k`
   return String(Math.floor(totalTokens))
