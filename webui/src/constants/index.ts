@@ -148,5 +148,4 @@ export const COLUMNS = [
   { key: 'uptime', label: 'Up%', shortKey: 'U', width: 6 },
   { key: 'used', label: 'Used', shortKey: '', width: 7 },
   { key: 'usage', label: 'Usage', shortKey: 'G', width: 7 },
-  { key: 'launch', label: 'Launch', shortKey: '', width: 10 },
 ] as const

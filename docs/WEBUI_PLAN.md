@@ -7,8 +7,7 @@ Build a browser-based shadcn UI that replicates ALL functionality from the TUI v
 **Key WebUI Differentiators:**
 - **No keyboard shortcuts required** - All actions available via clickable UI (buttons, dropdowns, toggles)
 - **Simplified connector system** - No manual provider-to-model mapping. Auto-selects best available provider based on API keys and real-time latency.
-- **Smart default launch** - One-click "Launch Best" picks top-ranked model automatically
-- **Unified API endpoint** - Single proxy endpoint that routes to the best model based on live ping data
+- **Unified API endpoint** - Single proxy endpoint (`/api/completions`) that routes to the best model based on live ping data, favorites, and tier filters. External tools can use this with a single FCM proxy key.
 - **Favorites-driven** - Star your favorites, and the system prioritizes them in auto-selection
 
 ## Technology Stack
@@ -59,15 +58,6 @@ Build a browser-based shadcn UI that replicates ALL functionality from the TUI v
 4. **Favorites pinned at top** - Starred models always visible regardless of filters
 5. **Search input** - Filter by model name
 
-### Smart Launch System (WebUI Enhancement)
-Instead of manual connector selection, implement:
-1. **Auto-provider selection** - For each model, pick any configured API key for that provider automatically
-2. **Launch Best button** - One-click launches the #1 ranked model (according to current filters/sort)
-3. **Per-row Launch button** - Each model has a launch icon that uses the best available provider key
-4. **Favorite priority** - When auto-selecting "best", favorites are weighted higher
-5. **Health-aware** - Only selects models with status "up" or "pending" (avoid down/timeout)
-
-### Settings Overlay (UI-driven)
 1. **Provider list** - All providers with:
    - Enable/disable toggle
    - API key input (masked) with add/edit/remove
@@ -89,14 +79,6 @@ Instead of manual connector selection, implement:
    - Install update button
 5. **Telemetry toggle** - Enable/disable anonymous analytics
 
-### Installation Overlay (Y key)
-1. **Step 1**: Choose configured provider (multi-select or pick one)
-2. **Step 2**: Choose target tool (OpenCode CLI, OpenCode Desktop, OpenClaw, Crush, Goose)
-3. **Step 3**: Choose scope (all models OR selected models from table)
-4. **Step 4**: Model selection grid (if scope = selected)
-5. **Step 5**: Installation progress and results (success/failure per tool)
-
-### Smart Recommend Overlay (Q key)
 Same questionnaire but with UI:
 1. **Task type**: Dropdown (Quick Fix, Bug Fix, Feature, Refactor, Review, Document, Explore)
 2. **Priority**: Radio buttons (Speed, Quality, Balanced)
@@ -122,17 +104,6 @@ Rather than just keyboard shortcuts, show:
 - Total tokens consumed (sum)
 - Filter by last 24h, last hour, etc.
 
-### Tool Integration (Simplified)
-WebUI launches models in external tools:
-- **OpenCode CLI** - Spawns process with selected model
-- **OpenCode Desktop** - Writes to shared config then opens app
-- **OpenClaw** - Writes default model to config
-- **Crush** - Installs managed provider catalog
-- **Goose** - Installs provider + secrets
-
-**UX improvement**: Instead of cycling tool modes, show a persistent "Launch with:" dropdown next to each model row, or a global dropdown in the header.
-
-### Configuration & Persistence
 1. **Config file** - `~/.free-coding-models.json` (shared with TUI)
 2. **API keys** - Per-provider, any number of keys, stored securely (0600)
 3. **Environment variable override** - NVIDIA_API_KEY, etc.
@@ -147,19 +118,17 @@ WebUI launches models in external tools:
 - Cloudflare Workers AI, Perplexity, Qwen, ZAI, iFlow
 
 ### Header UI (replaces keyboard badges)
-- **Tool selector**: Dropdown or buttons for OpenCode/Desktop/OpenClaw/Crush/Goose
-- **Ping mode**: Button group (Speed/Normal/Slow/Forced) with current highlighted
-- **Tier filter**: Button group (All/S+/S/A+/A/A-/B+/B/C)
+- **Ping mode**: Dropdown (Speed/Normal/Slow/Forced) with current highlighted
+- **Tier filter**: Dropdown (All/S+/S/A+/A/A-/B+/B/C)
 - **Provider filter**: Dropdown (All + each provider name)
 - **Configured-only**: Toggle switch
 - **Active profile**: Badge with dropdown to switch
 - **Ping status**: Progress bar (X/Y), countdown timer
-- **Launch Best button**: Prominent CTA to launch top model
 
 ### Footer UI
-- **Quick actions**: Buttons for Settings, Help, Recommend, Install, Feature Request, Bug Report, Logs
+- **Quick actions**: Buttons for Settings, Help, Recommend, Feature Request, Bug Report, Logs
 - **Keyboard hints**: Show key bindings as reference (optional, not required)
-- **Status**: Proxy status, version info, token usage
+- **Status**: Version info, token usage
 - **Model count**: Showing X of Y models
 
 ### Auto-Update System

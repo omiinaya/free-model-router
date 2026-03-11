@@ -5,11 +5,9 @@ import { Button } from '@/components/ui/button'
 
 export function Footer() {
   const {
-    toolMode,
     setSettingsOpen,
     setHelpOpen,
     setRecommendOpen,
-    setInstallOpen,
     setFeatureOpen,
     setBugOpen,
     setLogOpen,
@@ -65,9 +63,6 @@ export function Footer() {
       </div>
       <div className="flex items-center justify-between mt-1">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setInstallOpen(true)}>
-            📦 Install
-          </Button>
           <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setFeatureOpen(true)}>
             ✨ Feature
           </Button>

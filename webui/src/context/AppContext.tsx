@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
-import type { ModelResult, SortColumn, SortDirection, PingMode, ToolMode, Config } from '@/types'
+import type { ModelResult, SortColumn, SortDirection, PingMode, Config } from '@/types'
 import { MODELS, sources } from '@/lib/sources'
 import { sortResults } from '@/lib/utils'
 import { PING_INTERVALS, TIER_CYCLE } from '@/constants'
@@ -19,14 +19,12 @@ interface AppState {
   tierFilter: number
   providerFilter: number
   hideUnconfigured: boolean
-  toolMode: ToolMode
   activeProfile: string | null
   lastPingTime: number
   config: Config
   settingsOpen: boolean
   helpOpen: boolean
   recommendOpen: boolean
-  installOpen: boolean
   featureOpen: boolean
   bugOpen: boolean
   logOpen: boolean
@@ -46,24 +44,20 @@ interface AppContextType extends AppState {
   setProviderFilter: (filter: number) => void
   cycleProviderFilter: () => void
   toggleHideUnconfigured: () => void
-  setToolMode: (mode: ToolMode) => void
   toggleFavorite: (providerKey: string, modelId: string) => void
-  launchModel: (providerKey: string, modelId: string) => Promise<void>
-  launchBest: () => Promise<void>
   setProviderTestResult: (providerKey: string, status: string) => void
   testProvider: (providerKey: string) => Promise<void>
   setSearchQuery: (query: string) => void
   setSettingsOpen: (open: boolean) => void
   setHelpOpen: (open: boolean) => void
   setRecommendOpen: (open: boolean) => void
-  setInstallOpen: (open: boolean) => void
-   setFeatureOpen: (open: boolean) => void
-   setBugOpen: (open: boolean) => void
-   setLogOpen: (open: boolean) => void
-   setChatOpen: (open: boolean) => void
-   refreshResults: () => void
-   setConfig: (config: Config) => void
-   saveConfig: (newConfig: Config) => Promise<void>
+  setFeatureOpen: (open: boolean) => void
+  setBugOpen: (open: boolean) => void
+  setLogOpen: (open: boolean) => void
+  setChatOpen: (open: boolean) => void
+  refreshResults: () => void
+  setConfig: (config: Config) => void
+  saveConfig: (newConfig: Config) => Promise<void>
 }
 
 const defaultConfig: Config = {
@@ -86,14 +80,12 @@ const initialState: AppState = {
   tierFilter: 0,
   providerFilter: 0,
   hideUnconfigured: false,
-  toolMode: 'opencode',
   activeProfile: null,
   lastPingTime: Date.now(),
   config: defaultConfig,
   settingsOpen: false,
   helpOpen: false,
   recommendOpen: false,
-  installOpen: false,
   featureOpen: false,
   bugOpen: false,
   logOpen: false,
@@ -268,10 +260,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, hideUnconfigured: !prev.hideUnconfigured }))
   }, [])
 
-  const setToolMode = useCallback((mode: ToolMode) => {
-    setState(prev => ({ ...prev, toolMode: mode }))
-  }, [])
-
   const toggleFavorite = useCallback((providerKey: string, modelId: string) => {
     const key = `${providerKey}/${modelId}`
     setState(prev => {
@@ -291,29 +279,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { ...prev, results: newResults, config: newConfig }
     })
   }, [])
-
-  const launchModel = useCallback(async (providerKey: string, modelId: string) => {
-    const apiKey = state.config.apiKeys[providerKey]
-    if (!apiKey) {
-      toast.error(`No API key configured for ${providerKey}`)
-      return
-    }
-    toast.success(`Launching ${modelId} via ${providerKey}...`)
-    // TODO: actual launch integration (OpenCode/OpenClaw/etc)
-  }, [state.config])
-
-  const launchBest = useCallback(async () => {
-    if (state.visibleResults.length === 0) {
-      toast.error('No models match current filters')
-      return
-    }
-    const top = state.visibleResults[0]
-    if (!state.config.apiKeys[top.providerKey]) {
-      toast.error(`No API key configured for ${top.providerKey}`)
-      return
-    }
-    await launchModel(top.providerKey, top.modelId)
-  }, [state.visibleResults, state.config.apiKeys, launchModel])
 
   const setProviderTestResult = useCallback((providerKey: string, status: string) => {
     setState(prev => ({
@@ -384,7 +349,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setSettingsOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, settingsOpen: open })), [])
   const setHelpOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, helpOpen: open })), [])
   const setRecommendOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, recommendOpen: open })), [])
-  const setInstallOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, installOpen: open })), [])
   const setFeatureOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, featureOpen: open })), [])
   const setBugOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, bugOpen: open })), [])
   const setLogOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, logOpen: open })), [])
@@ -537,42 +501,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const key = e.key.toLowerCase()
 
-      switch (key) {
-        case 't':
-          cycleTierFilter()
-          break
-        case 'w':
-          cyclePingMode()
-          break
-        case 'n':
-          cycleProviderFilter()
-          break
-        case 'arrowup':
-          e.preventDefault()
-          const newUp = Math.max(0, cursorRef.current - 1)
-          setCursor(newUp)
-          break
-        case 'arrowdown':
-          e.preventDefault()
-          const newDown = Math.min(visibleResultsRef.current.length - 1, cursorRef.current + 1)
-          setCursor(newDown)
-          break
-        case 'enter':
-          {
-            const idx = cursorRef.current
-            const results = visibleResultsRef.current
-            if (results[idx]) {
-              const { providerKey, modelId } = results[idx]
-              launchModel(providerKey, modelId).catch(console.error)
-            }
-          }
-          break
-      }
+       switch (key) {
+         case 't':
+           cycleTierFilter()
+           break
+         case 'w':
+           cyclePingMode()
+           break
+         case 'n':
+           cycleProviderFilter()
+           break
+         case 'arrowup':
+           e.preventDefault()
+           const newUp = Math.max(0, cursorRef.current - 1)
+           setCursor(newUp)
+           break
+         case 'arrowdown':
+           e.preventDefault()
+           const newDown = Math.min(visibleResultsRef.current.length - 1, cursorRef.current + 1)
+           setCursor(newDown)
+           break
+         // No default action for Enter since launching is disabled
+       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [cycleTierFilter, cyclePingMode, cycleProviderFilter, setCursor, launchModel])
+   }, [cycleTierFilter, cyclePingMode, cycleProviderFilter, setCursor])
 
   const value: AppContextType = {
     ...state,
@@ -585,17 +540,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProviderFilter,
     cycleProviderFilter,
     toggleHideUnconfigured,
-    setToolMode,
     toggleFavorite,
-    launchModel,
-    launchBest,
     setProviderTestResult,
     testProvider,
     setSearchQuery,
     setSettingsOpen,
     setHelpOpen,
     setRecommendOpen,
-    setInstallOpen,
     setFeatureOpen,
     setBugOpen,
     setLogOpen,

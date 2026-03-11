@@ -1,8 +1,8 @@
 'use client'
 
 import { useApp } from '@/context/AppContext'
-import { TOOL_METADATA, TOOL_MODE_ORDER, TIER_CYCLE } from '@/constants'
-import type { ToolMode, PingMode } from '@/types'
+import { TIER_CYCLE } from '@/constants'
+import type { PingMode } from '@/types'
 import { ProviderFilter } from '@/components/Filters/ProviderFilter'
 import { ConfiguredToggle } from '@/components/Filters/ConfiguredToggle'
 import { Button } from '@/components/ui/button'
@@ -20,8 +20,6 @@ export function Header() {
   const {
     pingMode,
     setPingMode,
-    toolMode,
-    setToolMode,
     tierFilter,
     setTierFilter,
     activeProfile,
@@ -34,8 +32,6 @@ export function Header() {
     setHelpOpen,
     recommendOpen,
     setRecommendOpen,
-    installOpen,
-    setInstallOpen,
     featureOpen,
     setFeatureOpen,
     bugOpen,
@@ -46,7 +42,6 @@ export function Header() {
     setChatOpen,
     searchQuery,
     setSearchQuery,
-    launchBest,
   } = useApp()
 
   const [secondsUntilNext, setSecondsUntilNext] = useState<string>('--')
@@ -71,8 +66,6 @@ export function Header() {
     return () => clearInterval(timer)
   }, [lastPingTime, pingInterval])
 
-  const tools: ToolMode[] = [...TOOL_MODE_ORDER]
-
   return (
     <div className="border-b border-zinc-800 bg-zinc-950 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
@@ -92,25 +85,6 @@ export function Header() {
               className="pl-9 h-8 w-[200px] bg-zinc-800 border-zinc-700"
             />
           </div>
-
-          {/* Tool Mode Selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 h-8 px-3">
-              <span className="text-yellow-400">Z</span>
-              <span className="ml-2">Tool: {TOOL_METADATA[toolMode]?.label}</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {tools.map(tool => (
-                <DropdownMenuItem
-                  key={tool}
-                  onClick={() => setToolMode(tool)}
-                  className={tool === toolMode ? 'bg-zinc-800' : ''}
-                >
-                  {TOOL_METADATA[tool]?.emoji} {TOOL_METADATA[tool]?.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           {/* Tier Filter Dropdown */}
           <DropdownMenu>
@@ -204,16 +178,6 @@ export function Header() {
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Launch Best Button */}
-          <Button
-            size="sm"
-            variant="default"
-            onClick={launchBest}
-            className="h-8 bg-green-600 hover:bg-green-700 text-white"
-          >
-            🚀 Launch Best
-          </Button>
 
           {/* Ping Status */}
           <div className="text-sm text-zinc-400 flex items-center gap-2">

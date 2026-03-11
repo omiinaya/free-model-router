@@ -5,7 +5,6 @@ import { TierBadge } from '@/components/Badges/TierBadge'
 import { StatusBadge } from '@/components/Badges/StatusBadge'
 import { ProviderBadge } from '@/components/Badges/ProviderBadge'
 import { VerdictBadge } from '@/components/Badges/VerdictBadge'
-import { ModelRowActions } from '@/components/ModelRowActions'
 import { getAvg, getUptime, getStabilityScore, getVerdict, formatTokenTotal } from '@/lib/utils'
 import { COLUMNS } from '@/constants'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -91,12 +90,10 @@ export function ModelTable() {
         const uptime = getUptime(r)
         return <span className="font-mono text-zinc-400 text-sm">{uptime}%</span>
        case 'used':
-         return <span className="font-mono text-zinc-600 text-sm">{formatTokenTotal(r.totalTokens)}</span>
+          return <span className="font-mono text-zinc-600 text-sm">{formatTokenTotal(r.totalTokens)}</span>
       case 'usage':
         if (r.usagePercent === undefined) return <span className="font-mono text-zinc-600 text-sm">--</span>
         return <span className="font-mono text-zinc-400 text-sm">{r.usagePercent}%</span>
-      case 'launch':
-        return <ModelRowActions modelId={r.modelId} providerKey={r.providerKey} label={r.label} />
       default:
         return null
     }

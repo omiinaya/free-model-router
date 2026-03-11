@@ -11,7 +11,6 @@ export function Help() {
     setHelpOpen, 
     setSettingsOpen, 
     setRecommendOpen, 
-    setInstallOpen, 
     setLogOpen 
   } = useApp()
 
@@ -33,9 +32,6 @@ export function Help() {
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setRecommendOpen(true); setHelpOpen(false) }}>
                   🔍 Recommend
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setInstallOpen(true); setHelpOpen(false) }}>
-                  📦 Install
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setLogOpen(true); setHelpOpen(false) }}>
                   📋 Logs
