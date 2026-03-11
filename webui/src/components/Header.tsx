@@ -114,15 +114,13 @@ export function Header() {
 
           {/* Tier Filter Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button size="sm" variant="outline" className="h-8">
-                <span className="flex items-center gap-2">
-                  <span>Tier</span>
-                  <span className="text-zinc-400">
-                    {tierFilter === 0 ? 'All' : TIER_CYCLE[tierFilter]}
-                  </span>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 h-8 px-3">
+              <span className="flex items-center gap-2">
+                <span>Tier</span>
+                <span className="text-zinc-400">
+                  {tierFilter === 0 ? 'All' : TIER_CYCLE[tierFilter]}
                 </span>
-              </Button>
+              </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem
@@ -163,26 +161,24 @@ export function Header() {
         <div className="flex items-center gap-3">
           {/* Ping Mode Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button size="sm" variant="outline" className="h-8">
-                <span className="flex items-center gap-2">
-                  {(() => {
-                    const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
-                      speed: { Icon: Signal, color: 'text-green-400', label: 'Speed' },
-                      normal: { Icon: SignalHigh, color: 'text-zinc-300', label: 'Normal' },
-                      slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
-                      forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
-                    }
-                    const { Icon, color, label } = pingModeInfo[pingMode]
-                    return (
-                      <>
-                        <Icon className={`w-4 h-4 ${color}`} />
-                        <span>{label}</span>
-                      </>
-                    )
-                  })()}
-                </span>
-              </Button>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 h-8 px-3">
+              <span className="flex items-center gap-2">
+                {(() => {
+                  const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
+                    speed: { Icon: Signal, color: 'text-green-400', label: 'Speed' },
+                    normal: { Icon: SignalHigh, color: 'text-zinc-300', label: 'Normal' },
+                    slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
+                    forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
+                  }
+                  const { Icon, color, label } = pingModeInfo[pingMode]
+                  return (
+                    <>
+                      <Icon className={`w-4 h-4 ${color}`} />
+                      <span>{label}</span>
+                    </>
+                  )
+                })()}
+              </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {(['speed', 'normal', 'slow', 'forced'] as Array<PingMode>).map(mode => {
