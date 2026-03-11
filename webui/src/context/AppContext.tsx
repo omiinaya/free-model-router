@@ -71,6 +71,7 @@ const defaultConfig: Config = {
   favorites: [],
   activeProfile: null,
   profiles: {},
+  fcmProxyKey: '',
 }
 
 const initialState: AppState = {

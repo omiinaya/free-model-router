@@ -9,6 +9,7 @@ export interface Config {
   providers: Record<string, { enabled: boolean }>
   favorites: string[]
   settings?: Record<string, any>
+  fcmProxyKey?: string
 }
 
 export async function readConfig(): Promise<Config> {
@@ -22,6 +23,7 @@ export async function readConfig(): Promise<Config> {
         providers: {},
         favorites: [],
         settings: {},
+        fcmProxyKey: '',
       }
     }
     throw error

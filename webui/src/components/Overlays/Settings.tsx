@@ -6,12 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { toast } from 'sonner'
 import { useState } from 'react'
 
 export function Settings() {
   const { settingsOpen, setSettingsOpen, config, saveConfig, providerTestResults, testProvider } = useApp()
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editBuffer, setEditBuffer] = useState('')
+  const [proxyKeyInput, setProxyKeyInput] = useState(config.fcmProxyKey || '')
 
   const providerKeys = Object.keys(sources)
 
@@ -141,24 +143,50 @@ export function Settings() {
             </div>
           </div>
 
-          <div className="border-t border-zinc-700 pt-4">
-            <h3 className="text-lg font-semibold mb-3">🔀 Proxy</h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Switch />
-                <span>Enable proxy mode</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch />
-                <span>Persist proxy in OpenCode</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-zinc-400">Preferred port:</span>
-                <Input type="number" className="w-24" placeholder="0 = auto" />
-              </div>
-            </div>
-          </div>
-        </div>
+           <div className="border-t border-zinc-700 pt-4">
+             <h3 className="text-lg font-semibold mb-3">🔀 Proxy</h3>
+             <div className="space-y-3">
+               <div className="flex items-center gap-3">
+                 <Switch />
+                 <span>Enable proxy mode</span>
+               </div>
+               <div className="flex items-center gap-3">
+                 <Switch />
+                 <span>Persist proxy in OpenCode</span>
+               </div>
+               <div className="flex items-center gap-3">
+                 <span className="text-zinc-400">Preferred port:</span>
+                 <Input type="number" className="w-24" placeholder="0 = auto" />
+               </div>
+             </div>
+           </div>
+
+           <div className="border-t border-zinc-700 pt-4">
+             <h3 className="text-lg font-semibold mb-3">🔑 FCM Proxy API Key</h3>
+             <p className="text-sm text-zinc-400 mb-2">
+               Set a single API key for external tools to access /api/completions. They will use this key to authenticate with FCM as a unified provider endpoint.
+             </p>
+             <div className="flex items-center gap-3">
+               <Input
+                 type="password"
+                 value={proxyKeyInput}
+                 onChange={(e) => setProxyKeyInput(e.target.value)}
+                 placeholder="Enter FCM proxy API key..."
+                 className="flex-1"
+               />
+               <Button
+                 size="sm"
+                 onClick={async () => {
+                   const newConfig = { ...config, fcmProxyKey: proxyKeyInput }
+                   await saveConfig(newConfig)
+                   toast.success('FCM proxy key saved')
+                 }}
+               >
+                 Save
+               </Button>
+             </div>
+           </div>
+         </div>
       </DialogContent>
     </Dialog>
   )

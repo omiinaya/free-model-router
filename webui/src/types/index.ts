@@ -36,6 +36,7 @@ export interface Config {
   profiles: Record<string, Profile>
   settings?: AppSettings
   endpointInstalls?: EndpointInstall[]
+  fcmProxyKey?: string
 }
 
 export interface Profile {

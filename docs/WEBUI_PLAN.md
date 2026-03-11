@@ -181,22 +181,39 @@ WebUI launches models in external tools:
 5. **WebSocket (optional)** - Live updates for ping progress
 
 ### Unified Launch Endpoint (Key Innovation)
-Create a simple proxy endpoint:
+Single proxy endpoint that abstracts all provider complexity:
 - **Endpoint**: `POST /api/completions`
-- **Headers**: `X-Model: <model-id>` (optional) or `X-Best: true` to auto-select
+- **Authentication**: `X-API-Key: <single-fcm-key>` (user configures one key in FCM)
 - **Body**: Standard OpenAI chat completion format
+- **Selection Modes** (via headers):
+  - `X-Mode: specific` + `X-Model: <providerKey>/<modelId>` → exact model
+  - `X-Mode: group` + `X-Group: <tier|provider>` → best model within tier/provider group
+  - `X-Mode: round-robin` + `X-Pool: <tier|provider|all>` → cycle through pool
+  - `X-Best: true` (legacy) → shortcut for group=tier+provider=none (global best)
 - **Behavior**:
-  - If `X-Best: true`, select best model based on current filters, favorites, health
-  - If `X-Model` provided, use that model (lookup provider, pick API key)
-  - Proxy the request to the actual provider with appropriate headers
-  - Stream response back to client
-  - Log usage for token tracking
+  - Validates single FCM API key
+  - Selects target model based on mode + filters (health, favorites, score)
+  - Proxies request to the actual provider using that provider's stored API key
+  - Streams response back, logs usage tokens
+  - Rotates round-robin state per pool
 
 **Benefits**:
-- External tools can just point to `/api/completions` with `X-Best: true`
-- No need to manage multiple API keys externally
-- Single source of truth for latency/health
-- Can integrate with any OpenAI-compatible client
+- Client tools only need ONE API key (the FCM proxy key)
+- No need to manage 20 provider keys in every tool
+- Intelligent selection (favorites, health, tier) built-in
+- Easy to switch models without reconfiguring clients
+- Works with any OpenAI-compatible client (OpenCode, Cursor, Windsurf, etc.)
+
+**Round-Robin Algorithm**:
+- Maintains cursor position per pool (tier, provider, or all)
+- Advances to next healthy, enabled model after each request
+- Skips down/timeout models, respects hidden flag
+- Resets cursor on app restart (could be persisted in config)
+
+**Group Selection**:
+- `X-Group: S+` → pick best S+ model (respects favorites, health)
+- `X-Group: groq` → pick best Groq model
+- `X-Group: S+:groq` → intersect tier and provider (best S+ from Groq)
 
 ### Responsive Design
 - **Desktop**: Full table with all columns

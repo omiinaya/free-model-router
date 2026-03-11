@@ -1,47 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readConfig } from '@/lib/config'
 import { sources } from '@/lib/sources'
-import { getAvg, getStabilityScore, getUptime } from '@/lib/utils'
+import { MODELS } from '@/lib/sources'
+import { getAvg, getStabilityScore, getUptime, filterByTier } from '@/lib/utils'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { appendFile } from 'node:fs/promises'
 
+// Simple in-memory round-robin state per pool
+const roundRobinState: Map<string, number> = new Map()
+
 // GET /api/best - returns the best model according to current filters
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const fcmApiKey = request.headers.get('x-api-key')
     const config = await readConfig()
     
-    // Get all models that are enabled and have API keys
-    const enabledModels = Object.entries(sources)
-      .filter(([providerKey]) => config.providers[providerKey]?.enabled !== false)
-      .flatMap(([providerKey, src]) =>
-        src.models.map(model => ({
-          modelId: model[0],
-          label: model[1],
-          tier: model[2],
-          sweScore: model[3],
-          ctx: model[4],
-          providerKey,
-          status: 'pending' as const,
-          pings: [] as any[],
-          httpCode: null as string | null,
-          isPinging: false,
-          hidden: false,
-          isFavorite: config.favorites.includes(`${providerKey}/${model[0]}`),
-        }))
-      )
-
-    // Score models by multiple criteria
+    if (config.fcmProxyKey && fcmApiKey !== config.fcmProxyKey) {
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    }
+    
+    const enabledModels = getEnabledModels(config)
+    
+    // Score models
     const scored = enabledModels.map(m => ({
       ...m,
       score: computeModelScore(m, config),
     }))
-
-    // Sort by score descending
+    
     scored.sort((a, b) => b.score - a.score)
-
+    
     const best = scored[0]
-
+    
     if (!best) {
       return NextResponse.json({ error: 'No models available' }, { status: 404 })
     }
@@ -59,12 +49,31 @@ export async function GET() {
   }
 }
 
+function getEnabledModels(config: any) {
+  return Object.entries(sources)
+    .filter(([providerKey]) => config.providers[providerKey]?.enabled !== false)
+    .flatMap(([providerKey, src]) =>
+      src.models.map(model => ({
+        idx: -1,
+        modelId: model[0],
+        label: model[1],
+        tier: model[2],
+        sweScore: model[3],
+        ctx: model[4],
+        providerKey,
+        pings: [],
+        status: 'pending' as const,
+        httpCode: null,
+        isPinging: false,
+        hidden: false,
+        isFavorite: config.favorites.includes(`${providerKey}/${model[0]}`),
+        apiKey: config.apiKeys[providerKey],
+      }))
+    )
+    .filter(m => m.apiKey && !m.hidden)
+}
+
 function computeModelScore(m: any, config: any): number {
-  // Weighted scoring:
-  // - Favorite: +30
-  // - Tier: S+ = 30, S = 25, A+ = 20, A = 15, A- = 10, B+ = 5, B = 3, C = 1
-  // - Status: up/401 have small penalty based on avg (lower latency = higher score)
-  
   let score = 0
 
   // Favorite bonus
@@ -76,65 +85,139 @@ function computeModelScore(m: any, config: any): number {
   }
   score += tierScores[m.tier] || 0
 
-  // Provider enabled/disabled: if disabled, huge penalty
+  // Provider disabled penalty
   if (config.providers[m.providerKey]?.enabled === false) {
     score -= 1000
   }
 
-  // TODO: incorporate actual ping data (avg, stability, uptime) when available
-  // For now, rely on tier and favorites
-
   return score
 }
 
-// POST /api/completions - proxy to best model or specified model
+function getPoolKey(pool: string, tierFilter?: string, providerFilter?: string): string {
+  if (pool === 'all') return 'all'
+  if (pool === 'group') {
+    if (tierFilter && providerFilter) return `tier:${tierFilter}:prov:${providerFilter}`
+    if (tierFilter) return `tier:${tierFilter}`
+    if (providerFilter) return `prov:${providerFilter}`
+    return 'all'
+  }
+  return pool
+}
+
+function selectModelRoundRobin(pool: string, candidates: any[], config: any): any | null {
+  const poolKey = getPoolKey(pool)
+  const idx = roundRobinState.get(poolKey) || 0
+  const count = candidates.length
+  
+  if (count === 0) return null
+  
+  // Try up to count times to find a healthy model
+  for (let i = 0; i < count; i++) {
+    const candidate = candidates[(idx + i) % count]
+    // Skip models without API key or hidden
+    if (!candidate.apiKey || candidate.hidden) continue
+    // Update state for next call
+    roundRobinState.set(poolKey, (idx + i + 1) % count)
+    return candidate
+  }
+  
+  return null
+}
+
+function selectBestModel(candidates: any[], config: any): any | null {
+  const scored = candidates
+    .filter(m => m.apiKey && !m.hidden)
+    .map(m => ({ ...m, score: computeModelScore(m, config) }))
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0] || null
+}
+
+// POST /api/completions - unified proxy endpoint
 export async function POST(request: NextRequest) {
   try {
+    // 1. Authenticate single FCM API key
+    const fcmApiKey = request.headers.get('x-api-key')
+    const config = await readConfig()
+    
+    if (!fcmApiKey) {
+      return NextResponse.json({ error: 'Missing X-API-Key header' }, { status: 401 })
+    }
+    
+    if (config.fcmProxyKey && fcmApiKey !== config.fcmProxyKey) {
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    }
+
     const body = await request.json()
-    const bestHeader = request.headers.get('x-best')
+    const modeHeader = request.headers.get('x-mode') || 'specific'
     const modelHeader = request.headers.get('x-model')
+    const groupHeader = request.headers.get('x-group') // tier or provider filter (e.g., "S+", "groq", "S+:groq")
+    const poolHeader = request.headers.get('x-pool') // for round-robin: "all", "tier=S+", "provider=groq"
+    const bestHeader = request.headers.get('x-best') // legacy shortcut
+
+    // Get all enabled models with API keys
+    const allModels = getEnabledModels(config)
+    
+    // Start with all enabled models
+    let pool = allModels
+
+    // Apply group filter if provided (supports "S+", "groq", or "S+:groq")
+    if (groupHeader) {
+      const parts = groupHeader.split(':')
+      if (parts[0]) {
+        pool = pool.filter(m => m.tier === parts[0])
+      }
+      if (parts[1]) {
+        pool = pool.filter(m => m.providerKey === parts[1])
+      }
+    }
+
+    // Favorites always included (but we'll separate them for priority)
+    const favorites = pool.filter(m => m.isFavorite)
+    const nonFavorites = pool.filter(m => !m.isFavorite)
+
+    let selected: any = null
 
     if (bestHeader === 'true') {
-      // Auto-select best model
-      const config = await readConfig()
-      const enabledModels = Object.entries(sources)
-        .filter(([providerKey]) => config.providers[providerKey]?.enabled !== false)
-        .flatMap(([providerKey, src]) =>
-          src.models.map(model => ({
-            modelId: model[0],
-            providerKey,
-            apiKey: config.apiKeys[providerKey],
-          }))
-        )
-        .filter(m => m.apiKey)
-
-      if (enabledModels.length === 0) {
-        return NextResponse.json({ error: 'No enabled providers with API keys' }, { status: 503 })
-      }
-
-      // Pick the first enabled provider for now (we'll improve by checking ping data)
-      const selected = enabledModels[0]
-      const apiKey = Array.isArray(selected.apiKey) ? selected.apiKey[0] : selected.apiKey
-
-      return proxyRequest(selected.providerKey, selected.modelId, apiKey, body)
-    } else if (modelHeader) {
-      // Use specified model - need to parse provider from modelId
-      const config = await readConfig()
-      // Find which provider has this model
-      for (const [providerKey, src] of Object.entries(sources)) {
-        const hasModel = src.models.some((m: any) => m[0] === modelHeader)
-        if (hasModel) {
-          const rawKey = config.apiKeys[providerKey]
-          if (rawKey) {
-            const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey
-            return proxyRequest(providerKey, modelHeader, apiKey, body)
-          }
-        }
-      }
-      return NextResponse.json({ error: 'Model not found or no API key' }, { status: 404 })
+      // Legacy: global best
+      selected = selectBestModel(pool, config)
     } else {
-      return NextResponse.json({ error: 'Specify either X-Best: true or X-Model header' }, { status: 400 })
+      switch (modeHeader) {
+        case 'specific': {
+          if (!modelHeader) {
+            return NextResponse.json({ error: 'X-Model header required for mode=specific' }, { status: 400 })
+          }
+          // Find model in pool
+          selected = pool.find(m => m.modelId === modelHeader)
+          if (!selected) {
+            return NextResponse.json({ error: 'Model not found or not available' }, { status: 404 })
+          }
+          break
+        }
+        case 'group': {
+          // Select best from pool (respecting favorites priority)
+          const combined = [...favorites, ...nonFavorites]
+          selected = selectBestModel(combined, config) || selectBestModel(pool, config)
+          break
+        }
+        case 'round-robin': {
+          // Use pool header to determine pool scope, default to current filtered pool
+          const poolSpec = poolHeader || (groupHeader ? `group:${groupHeader}` : 'all')
+          const rrCandidates = [...favorites, ...nonFavorites] // favorites first but still rotate
+          selected = selectModelRoundRobin(poolSpec, rrCandidates, config) || selectBestModel(rrCandidates, config)
+          break
+        }
+        default:
+          return NextResponse.json({ error: `Unknown mode: ${modeHeader}` }, { status: 400 })
+      }
     }
+
+    if (!selected) {
+      return NextResponse.json({ error: 'No suitable model available for selection' }, { status: 503 })
+    }
+
+    // Proxy the request
+    const apiKey = Array.isArray(selected.apiKey) ? selected.apiKey[0] : selected.apiKey
+    return proxyRequest(selected.providerKey, selected.modelId, apiKey, body)
   } catch (error) {
     console.error('Completions error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
