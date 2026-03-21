@@ -2,6 +2,38 @@
 
 ---
 
+## 0.2.3
+
+### Added
+
+- 📖 **API Documentation overlay** - New "API" button in header shows comprehensive docs with cURL examples, headers explained, and selection modes.
+- 🔑 **API key indicator in Header** - Shows truncated API key in header, click to copy (or opens Settings if not set).
+- ⚙️ **Generate key button in Settings** - Added "Generate" button to auto-generate a random FCM proxy key.
+- ❤️ **Favorites-first API routing** - Default API behavior now routes through your favorited models (they get +30 score bonus). Star models to add them to your serving pool.
+- 🔄 **OpenAI-compatible API** - Full OpenAI API spec support:
+  - `GET /v1/models` - List available models
+  - `GET /v1/models/{id}` - Get specific model
+  - `POST /v1/chat/completions` - Chat completions (with streaming!)
+  - `POST /v1/completions` - Legacy text completions
+  - `POST /v1/embeddings` - Text embeddings (requires OpenAI or Cohere key in Settings)
+  - `POST /v1/batch` - Batch processing (up to 10 requests)
+  - `GET /v1/usage` - Token usage statistics
+  - `GET /health` - Health check endpoint
+  - Respects `model` parameter from request body
+  - Proper error responses with OpenAI format
+  - Request ID tracking in logs
+  - Rate limiting (disabled by default, configurable in Settings)
+
+### Changed
+
+- 🔄 Updated plan docs to emphasize API-first approach - the WebUI now revolves around serving LLMs via `/api/completions`, with favorites as the serving pool.
+- ⚡ **Simplified ping system** - Fixed 1500ms interval, batched requests (5 at a time), only pings visible models to reduce browser load.
+- 🚫 **Removed ping frequency options** - No more Speed/Normal/Slow modes, using fixed 1500ms interval.
+- 🚫 **Removed tool integrations** - No more OpenCode, OpenClaw, Crush, Goose launcher buttons. WebUI now focuses exclusively on API serving.
+- 🌐 **LAN binding** - WebUI now binds to 0.0.0.0:9191 for LAN access.
+
+---
+
 ## 0.2.2
 
 ### Added

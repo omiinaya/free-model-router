@@ -6,6 +6,7 @@ import { ModelTable } from '@/components/ModelTable'
 import { Footer } from '@/components/Footer'
 import { Settings } from '@/components/Overlays/Settings'
 import { Help } from '@/components/Overlays/Help'
+import { APIDocs } from '@/components/Overlays/APIDocs'
 import { Chat } from '@/components/Overlays/Chat'
 import { Recommend } from '@/components/Overlays/Recommend'
 import { FeatureRequest } from '@/components/Overlays/FeatureRequest'
@@ -19,9 +20,10 @@ function AppContent() {
       <ModelTable />
       <Footer />
       
-      <Settings />
-      <Help />
-      <Chat />
+<Settings />
+  <Help />
+  <APIDocs />
+  <Chat />
       <Recommend />
       <FeatureRequest />
       <BugReport />

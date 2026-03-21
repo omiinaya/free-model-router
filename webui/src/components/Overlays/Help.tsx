@@ -50,12 +50,9 @@ export function Help() {
             <div>
               <h3 className="text-lg font-semibold mb-3">Controls</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-yellow-400 font-mono">W</span> Toggle ping mode</div>
                 <div><span className="text-yellow-400 font-mono">E</span> Toggle configured only</div>
                 <div><span className="text-yellow-400 font-mono">X</span> Toggle log page</div>
-                <div><span className="text-yellow-400 font-mono">Z</span> Cycle tool mode</div>
                 <div><span className="text-yellow-400 font-mono">F</span> Toggle favorite</div>
-                <div><span className="text-yellow-400 font-mono">Y</span> Install endpoints</div>
                 <div><span className="text-yellow-400 font-mono">Q</span> Smart Recommend</div>
                 <div><span className="text-green-400 font-mono">J</span> Request Feature</div>
                 <div><span className="text-orange-400 font-mono">I</span> Report Bug</div>

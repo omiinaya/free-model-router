@@ -58,6 +58,11 @@ export interface AppSettings {
     syncToOpenCode?: boolean
     preferredPort?: number
   }
+  rateLimit?: {
+    enabled?: boolean
+    requestsPerMinute?: number
+    requestsPerHour?: number
+  }
 }
 
 export interface EndpointInstall {
@@ -72,7 +77,7 @@ export type SortColumn = 'rank' | 'tier' | 'swe' | 'ctx' | 'origin' | 'model' | 
 
 export type SortDirection = 'asc' | 'desc'
 
-export type PingMode = 'speed' | 'normal' | 'slow' | 'forced'
+export type PingMode = 'high' | 'medium' | 'low' | 'optimal'
 
 export type ToolMode = 'opencode' | 'opencode-desktop' | 'openclaw' | 'crush' | 'goose'
 

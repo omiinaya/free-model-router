@@ -51,12 +51,7 @@ export const PROVIDER_COLORS: Record<string, string> = {
   iflow: '#DCE775',
 }
 
-export const PING_INTERVALS = {
-  speed: 5000,
-  normal: 10000,
-  slow: 30000,
-  forced: 4000,
-}
+export const PING_INTERVAL_MS = 1500 // Fixed ping interval
 
 export const PING_TIMEOUT = 15000
 
@@ -64,21 +59,7 @@ export const FPS = 12
 
 export const FRAMES = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏']
 
-export const TOOL_MODE_ORDER = [
-  'opencode',
-  'opencode-desktop', 
-  'openclaw',
-  'crush',
-  'goose',
-] as const
 
-export const TOOL_METADATA: Record<string, { label: string; emoji: string; flag: string }> = {
-  opencode: { label: 'OpenCode CLI', emoji: '💻', flag: '--opencode' },
-  'opencode-desktop': { label: 'OpenCode Desktop', emoji: '🖥', flag: '--opencode-desktop' },
-  openclaw: { label: 'OpenClaw', emoji: '🦞', flag: '--openclaw' },
-  crush: { label: 'Crush', emoji: '💘', flag: '--crush' },
-  goose: { label: 'Goose', emoji: '🪿', flag: '--goose' },
-}
 
 export const TASK_TYPES: Record<string, { label: string; weights: { speed: number; quality: number; context: number; uptime: number; stability: number } }> = {
   quickfix: {

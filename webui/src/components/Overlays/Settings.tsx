@@ -183,48 +183,76 @@ export function Settings() {
             </div>
           </div>
 
-           <div className="border-t border-zinc-700 pt-4">
-             <h3 className="text-lg font-semibold mb-3">🔀 Proxy</h3>
-             <div className="space-y-3">
-               <div className="flex items-center gap-3">
-                 <Switch />
-                 <span>Enable proxy mode</span>
-               </div>
-               <div className="flex items-center gap-3">
-                 <Switch />
-                 <span>Persist proxy in OpenCode</span>
-               </div>
-               <div className="flex items-center gap-3">
-                 <span className="text-zinc-400">Preferred port:</span>
-                 <Input type="number" className="w-24" placeholder="0 = auto" />
-               </div>
-             </div>
-           </div>
+<div className="border-t border-zinc-700 pt-4">
+              <h3 className="text-lg font-semibold mb-3">🔀 Proxy</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch />
+                  <span>Enable proxy mode</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch />
+                  <span>Persist proxy in OpenCode</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-zinc-400">Preferred port:</span>
+                  <Input type="number" className="w-24" placeholder="0 = auto" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-700 pt-4">
+              <h3 className="text-lg font-semibold mb-3">🚦 Rate Limiting</h3>
+              <p className="text-sm text-zinc-400 mb-3">
+                Disable rate limiting by default. Enable and configure to protect your API.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch id="rate-limit-enable" />
+                  <span>Enable rate limiting</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-zinc-400">Requests per minute:</span>
+                  <Input type="number" className="w-24" placeholder="60" defaultValue={60} />
+                </div>
+              </div>
+            </div>
 
             <div className="border-t border-zinc-700 pt-4">
               <h3 className="text-lg font-semibold mb-3">🔑 FCM Proxy API Key</h3>
               <p className="text-sm text-zinc-400 mb-2">
                 Set a single API key for external tools to access /api/completions. They will use this key to authenticate with FCM as a unified provider endpoint.
               </p>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="password"
-                  value={proxyKeyInput}
-                  onChange={(e) => setProxyKeyInput(e.target.value)}
-                  placeholder="Enter FCM proxy API key..."
-                  className="flex-1"
-                />
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    const newConfig = { ...config, fcmProxyKey: proxyKeyInput }
-                    await saveConfig(newConfig)
-                    toast.success('FCM proxy key saved')
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
+<div className="flex items-center gap-3">
+  <Input
+    type="password"
+    value={proxyKeyInput}
+    onChange={(e) => setProxyKeyInput(e.target.value)}
+    placeholder="Enter FCM proxy API key..."
+    className="flex-1"
+  />
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={() => {
+      const key = 'fcm_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+      setProxyKeyInput(key)
+      toast.info('Generated new key - click Save to apply')
+    }}
+  >
+    Generate
+  </Button>
+  <Button
+    size="sm"
+    onClick={async () => {
+      const newConfig = { ...config, fcmProxyKey: proxyKeyInput }
+      await saveConfig(newConfig)
+      toast.success('FCM proxy key saved')
+    }}
+  >
+    Save
+  </Button>
+</div>
             </div>
 
             {/* Profiles */}

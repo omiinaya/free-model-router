@@ -20,8 +20,8 @@
 
 ### Ping System
 - Continuous parallel ping for all models
-- 4 cadence modes: Speed (2s), Normal (10s), Slow (30s), Forced (4s)
-- Auto-switching: Speed mode for first 60s, then Normal
+- Fixed 1500ms interval with batching (only 5 models at a time)
+- Only pings visible models (not off-screen) to reduce browser load
 - Rolling averages and uptime tracking
 - Provider-specific API integrations (20+ providers)
 
@@ -30,8 +30,8 @@
 - Provider dropdown selector
 - "Configured only" toggle
 - Search by model name (can be added)
-- Ping mode selector buttons (Speed/Normal/Slow/Forced)
-- Tool mode dropdown (OpenCode, OpenCode Desktop, OpenClaw, Crush, Goose)
+- Refresh speed selector (Fast/Slow/Moderate)
+- **REMOVED**: Tool mode dropdown (OpenCode, OpenCode Desktop, OpenClaw, Crush, Goose)
 
 ### Settings & Config
 - API key management per provider (add/edit/remove)
@@ -50,46 +50,55 @@
 - **Bug Report** - Report bugs
 - **Log Viewer** - View request history
 
-### Unified Launch API
-- `GET /api/completions` → Returns best model (auto-selected)
-- `POST /api/completions` with `X-Best: true` → Proxies to best model
-- `POST /api/completions` with `X-Model: <id>` → Proxies to specific model
-- Automatic provider selection based on enabled state and scoring
+### Unified API Endpoints (OpenAI-Compatible)
+- `POST /v1/chat/completions` - Chat completions (with streaming!)
+- `POST /v1/completions` - Legacy text completions
+- `POST /v1/embeddings` - Text embeddings
+- `GET /v1/models` - List available models
+- `GET /v1/models/{id}` - Get specific model
+- `GET /v1/usage` - Token usage statistics
+- `POST /v1/batch` - Batch processing (up to 10 requests)
+- `GET /health` - Health check endpoint
+- Authentication via `X-API-Key: <fcm-proxy-key>` header
+- Favorites-first routing (+30 score bonus to favorited models)
 - Request logging to `~/.free-coding-models-requests.jsonl`
 
 ### Installation
-- Install provider endpoints to OpenCode, OpenClaw, Crush, Goose
-- Managed provider catalogs with automatic updates
+- **REMOVED**: Install provider endpoints to OpenCode, OpenClaw, Crush, Goose
+- Focus is exclusively on API serving via `/api/completions`
 
 ---
 
 ## 🎯 How to Use
 
 1. **Start the WebUI**:
-   ```bash
-   cd webui
-   npm run dev
-   ```
-   Open http://localhost:3000
+```bash
+cd webui
+npm run dev
+```
+Open http://localhost:9191 (bound to 0.0.0.0 for LAN access)
 
 2. **Add API Keys**:
-   - Click "⚙ Settings"
-   - For each provider you have keys for, click "Add" and enter your API key
-   - Keys are saved to `~/.free-coding-models.json`
+- Click "⚙ Settings"
+- For each provider you have keys for, click "Add" and enter your API key
+- Keys are saved to `~/.free-coding-models.json`
 
 3. **Watch Models Ping**:
-   - Table auto-updates with latency data
-   - Use tier/provider filters to narrow down
-   - Star favorites to pin them to top
+- Table auto-updates with latency data
+- Use tier/provider filters to narrow down
+- Star favorites to pin them to top (favorites become the API serving pool)
 
-4. **Launch Models**:
-   - Use the "💬 Chat" button to open Quick Chat and send prompts to the best model
-   - Or use the row-level launch buttons (when fully implemented)
-   - External tools can call `/api/completions` with `X-Best: true`
+4. **Use the API**:
+- Generate a proxy key in Settings
+- External tools call `POST /api/completions` with `X-API-Key: <proxy-key>`
+- By default, requests route through your favorited models (+30 score bonus)
+- Full OpenAI-compatible API: `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/models`, `/v1/usage`, `/v1/batch`
 
-5. **Install to Tools**:
-   - Click "📦 Install" to install a provider's catalog into your external tools
-   - Select provider and target tool (OpenCode, OpenClaw, etc.)
+5. **Selection Modes** (via headers):
+- No headers → favorites pool (default, recommended)
+- `X-Mode: specific` + `X-Model: <provider>/<model>` → exact model
+- `X-Mode: round-robin` + `X-Pool: tier=S+` → cycle through tier
+- `X-Best: true` → global best model
 
 ---
 
@@ -164,12 +173,20 @@ Same as TUI: `~/.free-coding-models.json`
 
 ---
 
-## 🚀 Status: MVP Complete
+## 🚀 Status: API-First WebUI Complete ✅
 
-All core features implemented and production build succeeds. The WebUI provides a polished, browser-based interface that matches TUI functionality while adding new capabilities like Quick Chat and unified launch API.
+**Recent Updates (2026-03-21)**:
+- Simplified ping system: Fixed 1500ms interval, batched requests, only pings visible models
+- Removed ping frequency options entirely
+- Updated app to bind to 0.0.0.0:9191 for LAN access
+- **Focus**: Removed tool integrations (OpenCode, OpenClaw, Crush, Goose) - WebUI now exclusively serves API
+- **Core**: Complete OpenAI-compatible API implementation (`/v1/*` endpoints)
+- **Priority**: Favorites-first routing with +30 score bonus
+
+All core features implemented and production build succeeds. The WebUI provides a polished, API-first interface for serving LLMs via a unified OpenAI-compatible endpoint.
 
 **To deploy**: Build with `npm run build` and deploy to Vercel or any Node.js hosting.
 
 ---
 
-**Last Updated**: 2026-03-10
+**Last Updated**: 2026-03-21

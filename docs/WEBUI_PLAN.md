@@ -2,13 +2,15 @@
 
 ## Overview
 
-Build a browser-based shadcn UI that replicates ALL functionality from the TUI version with a polished, modern interface.
+Build a browser-based shadcn UI that serves as a **unified LLM provider** - allowing users to favorite models and serve them via a single API endpoint.
+
+**Core Philosophy**: The WebUI revolves around the unified API endpoint. Users favorite models from the table, and those favorites become available as a pool that external tools can access via the API. No direct tool launching - just API integration.
 
 **Key WebUI Differentiators:**
-- **No keyboard shortcuts required** - All actions available via clickable UI (buttons, dropdowns, toggles)
-- **Simplified connector system** - No manual provider-to-model mapping. Auto-selects best available provider based on API keys and real-time latency.
-- **Unified API endpoint** - Single proxy endpoint (`/api/completions`) that routes to the best model based on live ping data, favorites, and tier filters. External tools can use this with a single FCM proxy key.
-- **Favorites-driven** - Star your favorites, and the system prioritizes them in auto-selection
+- **API-first** - The unified endpoint (`/api/completions`) is the core feature. Everything else (table, favorites, ping health) exists to support it.
+- **Favorites as the pool** - Star models to add them to your serving pool. The API routes through your favorites by default.
+- **No tool integrations** - No OpenCode, OpenClaw, Crush, Goose launchers. Just API access.
+- **Single API key** - External tools only need the FCM proxy key - no need to manage 20 provider keys.
 
 ## Technology Stack
 
@@ -59,15 +61,15 @@ Build a browser-based shadcn UI that replicates ALL functionality from the TUI v
 5. **Search input** - Filter by model name
 
 1. **Provider list** - All providers with:
-   - Enable/disable toggle
-   - API key input (masked) with add/edit/remove
-   - Test connection button (with live result: Testing/OK/Fail/Rate-limited/No model)
-   - Setup instructions (signup URL, hint, rate limits)
-2. **Proxy settings**:
-   - Enable/disable proxy mode toggle
-   - Persist proxy in OpenCode toggle
-   - Preferred port input (0 = auto)
-   - Clean OpenCode proxy config button
+- Enable/disable toggle
+- API key input (masked) with add/edit/remove
+- Test connection button (with live result: Testing/OK/Fail/Rate-limited/No model)
+- Setup instructions (signup URL, hint, rate limits)
+2. **FCM Proxy settings**:
+- Enable/disable proxy toggle
+- Generate/regenerate proxy API key button
+- Show current key (with copy button)
+- Port configuration (optional)
 3. **Profile management**:
    - Save current config as named profile
    - Load existing profile
@@ -118,6 +120,7 @@ Rather than just keyboard shortcuts, show:
 - Cloudflare Workers AI, Perplexity, Qwen, ZAI, iFlow
 
 ### Header UI (replaces keyboard badges)
+- **API Key indicator**: Shows truncated FCM proxy key for easy copy
 - **Ping mode**: Dropdown (Speed/Normal/Slow/Forced) with current highlighted
 - **Tier filter**: Dropdown (All/S+/S/A+/A/A-/B+/B/C)
 - **Provider filter**: Dropdown (All + each provider name)
@@ -149,35 +152,67 @@ Rather than just keyboard shortcuts, show:
 4. **GET `/api/launch/{modelId}`** - Proxies chat completion to the selected model's provider using appropriate API key
 5. **WebSocket (optional)** - Live updates for ping progress
 
-### Unified Launch Endpoint (Key Innovation)
-Single proxy endpoint that abstracts all provider complexity:
+### Unified API Endpoint (Core Feature)
+Single proxy endpoint that serves as an LLM provider - external tools call this instead of individual providers.
+
 - **Endpoint**: `POST /api/completions`
-- **Authentication**: `X-API-Key: <single-fcm-key>` (user configures one key in FCM)
+- **Authentication**: `X-API-Key: <fcm-proxy-key>` (set in Settings)
 - **Body**: Standard OpenAI chat completion format
-- **Selection Modes** (via headers):
-  - `X-Mode: specific` + `X-Model: <providerKey>/<modelId>` → exact model
-  - `X-Mode: group` + `X-Group: <tier|provider>` → best model within tier/provider group
-  - `X-Mode: round-robin` + `X-Pool: <tier|provider|all>` → cycle through pool
-  - `X-Best: true` (legacy) → shortcut for group=tier+provider=none (global best)
-- **Behavior**:
-  - Validates single FCM API key
-  - Selects target model based on mode + filters (health, favorites, score)
-  - Proxies request to the actual provider using that provider's stored API key
-  - Streams response back, logs usage tokens
-  - Rotates round-robin state per pool
+
+#### How Favorites Work as the Serving Pool
+
+1. **Star models** in the table to add them to your serving pool
+2. **Configure API keys** for the providers of your favorited models in Settings
+3. **Call the API** - it automatically routes through your favorites
+
+#### Default Behavior (Favorites-First)
+- When no specific mode is provided, the API routes through **your favorites** only
+- Favorites get a +30 score bonus, ensuring they're prioritized
+- If no favorites exist, falls back to best model from all enabled providers
+- This is the key difference: the API serves YOUR chosen models, not all models
+
+#### Selection Modes (via headers):
+- **No headers** → routes through favorites pool (default, recommended)
+- `X-Mode: specific` + `X-Model: <providerKey>/<modelId>` → exact model
+- `X-Mode: group` + `X-Group: <tier|provider>` → best model within tier/provider group
+- `X-Mode: round-robin` + `X-Pool: <tier|provider|all>` → cycle through pool
+- `X-Best: true` (legacy) → shortcut for group=tier+provider=none (global best)
+
+#### Example Usage
+```bash
+# Default: routes through your favorites (recommended)
+curl -X POST http://localhost:3000/api/completions \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-fcm-proxy-key" \
+  -d '{"messages":[{"role":"user","content":"Hello"}]}'
+
+# Specific model
+curl -X POST http://localhost:3000/api/completions \
+  -H "X-API-Key: your-fcm-proxy-key" \
+  -H "X-Mode: specific" \
+  -H "X-Model: groq/llama-3.3-70b-versatile" \
+  -d '{"messages":[{"role":"user","content":"Hello"}]}'
+
+# Round-robin through S+ tier
+curl -X POST http://localhost:3000/api/completions \
+  -H "X-API-Key: your-fcm-proxy-key" \
+  -H "X-Mode: round-robin" \
+  -H "X-Pool: tier=S+" \
+  -d '{"messages":[{"role":"user","content":"Hello"}]}'
+```
 
 **Benefits**:
 - Client tools only need ONE API key (the FCM proxy key)
-- No need to manage 20 provider keys in every tool
+- Favorites are your personal model pool - the API serves them by default
 - Intelligent selection (favorites, health, tier) built-in
 - Easy to switch models without reconfiguring clients
-- Works with any OpenAI-compatible client (OpenCode, Cursor, Windsurf, etc.)
+- Works with any OpenAI-compatible client
 
 **Round-Robin Algorithm**:
 - Maintains cursor position per pool (tier, provider, or all)
+- Prioritizes favorites in the rotation
 - Advances to next healthy, enabled model after each request
 - Skips down/timeout models, respects hidden flag
-- Resets cursor on app restart (could be persisted in config)
 
 **Group Selection**:
 - `X-Group: S+` → pick best S+ model (respects favorites, health)
@@ -256,9 +291,8 @@ Single proxy endpoint that abstracts all provider complexity:
    - Ping mode: button group in header (Speed/Normal/Slow/Forced)
    - Tool mode: dropdown in header (OpenCode, Desktop, OpenClaw, Crush, Goose)
 
-4.2 Implement "Launch Best" prominent button in header
-4.3 Add per-row "Launch" button (optional, or double-click row)
-4.4 Filter logic: tier + provider + hide unconfigured + search + favorites-pinned
+4.2 API key display/truncation in header for easy copying
+4.3 Filter logic: tier + provider + hide unconfigured + search + favorites-pinned
 
 ### Phase 5: Settings & Config Management
 **Goal**: Full settings panel with API key mgmt, profiles, proxy
@@ -282,44 +316,35 @@ Single proxy endpoint that abstracts all provider complexity:
 
 ### Phase 6: Overlays (All 7)
 6.1 Help overlay - now with clickable action buttons
-6.2 Install Endpoints overlay - multi-step wizard UI
+6.2 API Documentation overlay - usage examples, proxy key display
 6.3 Smart Recommend overlay - questionnaire form + results
 6.4 Feature Request overlay - textarea + send
 6.5 Bug Report overlay - textarea + send
 6.6 Log Viewer overlay - table with token usage
 6.7 Settings overlay (from Phase 5)
 
-### Phase 7: Unified Launch API
-**Innovation**: Single endpoint that auto-selects best model
+### Phase 7: Unified API (Core Feature)
+**This is the core of the WebUI** - serving LLMs via API with favorites as the pool.
 
-7.1 Create `/api/launch` proxy endpoint:
-   - Accepts `X-Model` or `X-Best` header
-   - Looks up model provider from config
-   - Picks API key (first configured for that provider, or round-robin)
-   - Forwards chat completion request
-   - Streams response
-   - Logs token usage to `request-log.jsonl`
+7.1 Create `/api/completions` proxy endpoint:
+- Accepts `X-Mode`, `X-Model`, `X-Group`, `X-Pool`, `X-Best` headers
+- By default, routes through favorites pool only (+30 score bonus)
+- Falls back to all enabled models if no favorites
+- Proxies request to actual provider using stored API key
+- Logs token usage to `request-log.jsonl`
 7.2 Create `/api/best` endpoint:
-   - Returns JSON with best model id, provider, expected latency
-   - Considers current filters, favorites, health
+- Returns JSON with best model id, provider, expected latency
+- Considers current filters, favorites, health
 7.3 Create `/api/models` endpoint:
-   - Returns full model list with current ping data
-   - For building third-party integrations
-7.4 Update WebUI launch buttons to use unified endpoint (or direct provider calls)
-7.5 Documentation: How to use the API from external tools
+- Returns full model list with current ping data
+7.4 Favorites management:
+- Star/unstar models in table
+- Favorites stored in config file
+- Favorites pool is the default routing target for the API
+7.5 API key display in header (truncated) for easy reference
+7.6 Documentation: How to use the API from external tools
 
-### Phase 8: Tool Integration
-8.1 Implement each tool launcher (same as TUI logic):
-   - OpenCode CLI: `child_process.spawn` with model arg
-   - OpenCode Desktop: write config + `open`/`start`/`xdg-open`
-   - OpenClaw: write JSON config
-   - Crush: write managed provider
-   - Goose: custom provider + secrets.yaml
-8.2 Detect tool installation (check paths)
-8.3 Error handling (show toast if tool missing)
-8.4 Global "launch with" dropdown in header
-
-### Phase 9: Token Usage & Logging
+### Phase 8: Token Usage & Logging
 9.1 Create `request-log.jsonl` writer
 9.2 Log format: timestamp, provider, model, route (direct/switched), status, tokens, latency
 9.3 Compute total tokens per provider/model
@@ -364,18 +389,7 @@ In the TUI, connectors map provider + API key to a model because the CLI needs e
 - No need for user to manually assign "which key goes with which model"
 - **Result**: Much simpler UX, same capability
 
-### Why "Launch Best"?
-Users rarely care about the provider - they want the fastest model for their task. The "Best" model is determined by:
-1. Is it up and healthy? (status === 'up' or pending with good avg)
-2. Is it a favorite? (+10% weight)
-3. Tier preference (higher tier = S+ > S > A+ > A > A- > B+ > B > C)
-4. Current avg latency (lower is better)
-5. Stability score (higher is better)
-6. Uptime percentage (higher is better)
-
-This ranking can be computed client-side from current ping data.
-
-### Unified API Design
+### Unified API Design (Core Feature)
 External tools (OpenCode, Aider, Claude Code) often need to call an LLM. Instead of hardcoding a specific provider/model, they can:
 ```bash
 curl -X POST http://localhost:3000/api/completions \
@@ -393,17 +407,16 @@ The WebUI automatically selects and proxies to the best model, handling authenti
 |-------|------|----------|-----------|
 | 1 | Project Setup | ✅ Done | 1h |
 | 2 | Core Table | ✅ Done | 2h |
-| 3 | Ping System | In Progress | 4h |
-| 4 | UI Controls | Next | 3h |
-| 5 | Settings | Next | 4h |
-| 6 | Overlays | Next | 3h |
-| 7 | Unified Launch API | High | 3h |
-| 8 | Tool Integration | Medium | 2h |
-| 9 | Token Logging | Medium | 2h |
-| 10 | Polish | Low | 4h |
-| 11 | Deployment | Low | 2h |
+| 3 | Ping System | ✅ Done | 4h |
+| 4 | UI Controls | ✅ Done | 3h |
+| 5 | Settings | ✅ Done | 4h |
+| 6 | Overlays | ✅ Done | 3h |
+| 7 | Unified API (Core) | ✅ Done | 3h |
+| 8 | Token Logging | ✅ Done | 2h |
+| 9 | Polish | Next | 4h |
+| 10 | Deployment | Low | 2h |
 
-**Total**: ~28h of focused development
+**Total**: ~24h of focused development (no tool integration needed)
 
 ---
 
@@ -428,12 +441,12 @@ The WebUI will be a Next.js app that can optionally symlink to the TUI's sources
 4. ✅ Sorting, filtering, favorites work
 5. ✅ Settings can add/edit/remove API keys
 6. ✅ Config persists to `~/.free-coding-models.json`
-7. ✅ Launch Best button works (proxies to best model)
-8. ✅ Overlays functional (Help, Recommend, Install, Feature/Bug)
+7. ✅ **API serves favorites by default** - core feature working
+8. ✅ Overlays functional (Help, Recommend, Feature/Bug, Logs)
 9. ✅ Token logging works
 10. ✅ Build succeeds, deploys to Vercel without errors
 11. ✅ TUI can read same config file
-12. ✅ No features missing compared to TUI (full parity)
+12. ✅ No tool integrations needed - API-first approach
 
 ---
 
@@ -541,7 +554,7 @@ webui/
 │   │   ├── Settings.tsx            # Settings modal
 │   │   ├── Help.tsx                # Help modal
 │   │   ├── Recommend.tsx           # Smart Recommend wizard
-│   │   ├── InstallEndpoints.tsx    # Install Endpoints flow
+│ │ ├── APIDocs.tsx # API documentation overlay
 │   │   ├── FeatureRequest.tsx      # Feature request form
 │   │   ├── BugReport.tsx           # Bug report form
 │   │   └── LogViewer.tsx           # Token log viewer
@@ -821,13 +834,11 @@ webui/
 - CLI flags documentation
 - Scrollable if long
 
-6.2 Install Endpoints Overlay (`Y` key):
-- Step 1: Provider selection (list configured providers only)
-- Step 2: Tool selection (OpenCode CLI, OpenCode Desktop, OpenClaw, Crush, Goose)
-- Step 3: Scope selection (all models OR selected)
-- Step 4: Model selection (checkboxes, select all/none)
-- Result: Success/failure display
-- Write to tool config files
+6.2 API Documentation Overlay (`Y` key):
+- Show API usage examples
+- Display current FCM proxy key
+- Show how to use favorites as the serving pool
+- cURL examples for different modes
 
 6.3 Smart Recommend Overlay (`Q` key):
 - Question 1: Task type (Quick Fix / Bug Fix / Feature / Refactor / Review / Document / Explore)
@@ -854,59 +865,18 @@ webui/
 - Total tokens consumed display
 - Show "direct" or "SWITCHED" for route
 
-**Deliverable**: All 7 overlays working exactly like TUI
+**Deliverable**: All overlays working (Help, API Docs, Recommend, Feature/Bug, Logs)
 
 ---
 
-## Phase 7: Tool Integration & Launch
-
-**Goal**: Allow launching models in external tools
-
-### Tasks
-
-7.1 Tool mode selector:
-- Cycle through: OpenCode → OpenCode Desktop → OpenClaw → Crush → Goose
-- Keyboard: Z key
-- Badge in header shows current mode
-
-7.2 OpenCode CLI launch:
-- Detect OpenCode installation
-- Write config to ~/.config/opencode/opencode.json
-- Set selected model as default
-- Spawn OpenCode process with model
-
-7.3 OpenCode Desktop launch:
-- Write to shared opencode.json
-- Open Desktop app (macOS: open, Windows: start, Linux: xdg-open)
-
-7.4 OpenClaw integration:
-- Write to ~/.openclaw/openclaw.json
-- Set selected model as default
-
-7.5 Crush integration:
-- Write managed provider to ~/.config/crush/crush.json
-
-7.6 Goose integration:
-- Write custom provider JSON
-- Write secrets to ~/.config/goose/secrets.yaml
-
-7.7 Error handling:
-- Detect if tool is installed
-- Show error if tool not found
-- Graceful failures
-
-**Deliverable**: Launch selected model in any supported tool
-
----
-
-## Phase 8: Header, Footer & Status
+## Phase 7: Header, Footer & Status
 
 **Goal**: Complete header badges and footer information
 
 ### Tasks
 
 8.1 Header badges:
-- Tool mode badge with Z hint
+- API key indicator (truncated, with copy button)
 - Tier filter badge when active
 - Provider filter badge when active
 - Configured only badge when active
@@ -924,11 +894,10 @@ webui/
 
 8.4 Footer hints:
 - Navigate: ↑↓
-- Launch: Enter
-- Controls: W, E, X, Z, F, Y, Q, J, I, P
-- Profiles: Shift+P, Shift+S
+- Favorites: F
+- API: Enter (copy API key)
+- Controls: W, E, X, Y, Q, J, I, P
 - Help: K
-- Exit: Ctrl+C
 
 8.5 Terminal resize:
 - Detect window resize
@@ -1062,13 +1031,12 @@ webui/
 | 2 | Core Table | High | All 14 columns with sorting |
 | 3 | Ping System | High | Live ping with all modes |
 | 4 | Filtering | High | Tier/provider/favorites filters |
-| 5 | Settings | High | Full settings panel |
-| 6 | Overlays | High | All 7 overlay types |
-| 7 | Tool Integration | Medium | Launch in external tools |
-| 8 | Header/Footer | Medium | Complete status display |
-| 9 | Config & Profiles | Medium | Full persistence |
-| 10 | Polish | Low | Animations, responsive |
-| 11 | Deployment | Low | Production ready |
+| 5 | Settings | High | Full settings + proxy key |
+| 6 | Overlays | High | Help, API Docs, Recommend, Feature/Bug, Logs |
+| 7 | Unified API | Core | Serve favorites via /api/completions |
+| 8 | Token Logging | Medium | Request logs + usage stats |
+| 9 | Polish | Low | Animations, responsive |
+| 10 | Deployment | Low | Production ready |
 
 ---
 
@@ -1084,8 +1052,6 @@ The following files should be shared (symlink or copy) between TUI and WebUI:
 6. `src/tier-colors.js` - Color mappings
 7. `src/model-merger.js` - Model merging
 8. `src/provider-metadata.js` - Provider info
-9. `src/tool-metadata.js` - Tool info
-10. `src/endpoint-installer.js` - Install endpoints logic
 
 ---
 

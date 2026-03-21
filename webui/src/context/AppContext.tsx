@@ -1,10 +1,10 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
-import type { ModelResult, SortColumn, SortDirection, PingMode, Config } from '@/types'
+import type { ModelResult, SortColumn, SortDirection, Config } from '@/types'
 import { MODELS, sources } from '@/lib/sources'
 import { sortResults } from '@/lib/utils'
-import { PING_INTERVALS, TIER_CYCLE } from '@/constants'
+import { TIER_CYCLE } from '@/constants'
 import { startPingLoop, pingModel } from '@/lib/ping'
 import { toast } from 'sonner'
 
@@ -14,8 +14,7 @@ interface AppState {
   cursor: number
   sortColumn: SortColumn
   sortDirection: SortDirection
-  pingMode: PingMode
-  pingInterval: number
+  refreshSpeed: number // UI refresh rate in ms (100 = fast, 1000 = slow)
   tierFilter: number
   providerFilter: number
   hideUnconfigured: boolean
@@ -24,6 +23,7 @@ interface AppState {
   config: Config
   settingsOpen: boolean
   helpOpen: boolean
+  apiDocsOpen: boolean
   recommendOpen: boolean
   featureOpen: boolean
   bugOpen: boolean
@@ -37,8 +37,7 @@ interface AppState {
 interface AppContextType extends AppState {
   setCursor: (cursor: number) => void
   setSort: (column: SortColumn, direction?: SortDirection) => void
-  setPingMode: (mode: PingMode) => void
-  cyclePingMode: () => void
+  setRefreshSpeed: (speed: number) => void
   setTierFilter: (filter: number) => void
   cycleTierFilter: () => void
   setProviderFilter: (filter: number) => void
@@ -50,6 +49,7 @@ interface AppContextType extends AppState {
   setSearchQuery: (query: string) => void
   setSettingsOpen: (open: boolean) => void
   setHelpOpen: (open: boolean) => void
+  setApiDocsOpen: (open: boolean) => void
   setRecommendOpen: (open: boolean) => void
   setFeatureOpen: (open: boolean) => void
   setBugOpen: (open: boolean) => void
@@ -75,8 +75,7 @@ const initialState: AppState = {
   cursor: 0,
   sortColumn: 'avg',
   sortDirection: 'asc',
-  pingMode: 'speed',
-  pingInterval: PING_INTERVALS.speed,
+  refreshSpeed: 500, // moderate refresh rate (500ms)
   tierFilter: 0,
   providerFilter: 0,
   hideUnconfigured: false,
@@ -85,6 +84,7 @@ const initialState: AppState = {
   config: defaultConfig,
   settingsOpen: false,
   helpOpen: false,
+  apiDocsOpen: false,
   recommendOpen: false,
   featureOpen: false,
   bugOpen: false,
@@ -212,26 +212,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
-  const setPingMode = useCallback((mode: PingMode) => {
-    setState(prev => ({
-      ...prev,
-      pingMode: mode,
-      pingInterval: PING_INTERVALS[mode],
-    }))
-  }, [])
-
-  const cyclePingMode = useCallback(() => {
-    const modes: PingMode[] = ['speed', 'normal', 'slow', 'forced']
-    setState(prev => {
-      const currentIdx = modes.indexOf(prev.pingMode)
-      const nextIdx = (currentIdx + 1) % modes.length
-      const nextMode = modes[nextIdx]
-      return {
-        ...prev,
-        pingMode: nextMode,
-        pingInterval: PING_INTERVALS[nextMode],
-      }
-    })
+  const setRefreshSpeed = useCallback((speed: number) => {
+    setState(prev => ({ ...prev, refreshSpeed: speed }))
   }, [])
 
   const setTierFilter = useCallback((filter: number) => {
@@ -348,6 +330,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setSettingsOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, settingsOpen: open })), [])
   const setHelpOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, helpOpen: open })), [])
+  const setApiDocsOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, apiDocsOpen: open })), [])
   const setRecommendOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, recommendOpen: open })), [])
   const setFeatureOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, featureOpen: open })), [])
   const setBugOpen = useCallback((open: boolean) => setState(prev => ({ ...prev, bugOpen: open })), [])
@@ -463,7 +446,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const cleanup = startPingLoop(
       state.results,
       handlePingComplete,
-      state.pingMode,
+      state.visibleResults,
       () => false,
       () => {
         setState(prev => ({ ...prev, lastPingTime: Date.now() }))
@@ -477,7 +460,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         pingLoopRef.current = null
       }
     }
-  }, [state.results, state.pingMode, handlePingComplete])
+  }, [state.results, state.visibleResults, handlePingComplete])
 
   // Keep refs in sync for hotkey handler
   useEffect(() => {
@@ -502,15 +485,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const key = e.key.toLowerCase()
 
        switch (key) {
-         case 't':
-           cycleTierFilter()
-           break
-         case 'w':
-           cyclePingMode()
-           break
-         case 'n':
-           cycleProviderFilter()
-           break
+case 't':
+        cycleTierFilter()
+        break
+      case 'w':
+        cycleProviderFilter()
+        break
+      case 'n':
+        // Reserve 'n' for future use
+        break
          case 'arrowup':
            e.preventDefault()
            const newUp = Math.max(0, cursorRef.current - 1)
@@ -525,36 +508,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
        }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-   }, [cycleTierFilter, cyclePingMode, cycleProviderFilter, setCursor])
+document.addEventListener('keydown', handleKeyDown)
+  return () => document.removeEventListener('keydown', handleKeyDown)
+}, [cycleTierFilter, cycleProviderFilter, setCursor])
 
-  const value: AppContextType = {
-    ...state,
-    setCursor,
-    setSort,
-    setPingMode,
-    cyclePingMode,
-    setTierFilter,
-    cycleTierFilter,
-    setProviderFilter,
-    cycleProviderFilter,
-    toggleHideUnconfigured,
-    toggleFavorite,
-    setProviderTestResult,
-    testProvider,
-    setSearchQuery,
-    setSettingsOpen,
-    setHelpOpen,
-    setRecommendOpen,
-    setFeatureOpen,
-    setBugOpen,
-    setLogOpen,
-    setChatOpen,
-    refreshResults,
-    setConfig,
-    saveConfig,
-  }
+const value: AppContextType = {
+  ...state,
+  setCursor,
+  setSort,
+  setRefreshSpeed,
+  setTierFilter,
+  cycleTierFilter,
+  setProviderFilter,
+  cycleProviderFilter,
+  toggleHideUnconfigured,
+  toggleFavorite,
+  setProviderTestResult,
+  testProvider,
+  setSearchQuery,
+  setSettingsOpen,
+  setHelpOpen,
+  setApiDocsOpen,
+  setRecommendOpen,
+  setFeatureOpen,
+  setBugOpen,
+  setLogOpen,
+  setChatOpen,
+  refreshResults,
+  setConfig,
+  saveConfig,
+}
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

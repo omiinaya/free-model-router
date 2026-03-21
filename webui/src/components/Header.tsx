@@ -1,8 +1,7 @@
 'use client'
 
 import { useApp } from '@/context/AppContext'
-import { TIER_CYCLE } from '@/constants'
-import type { PingMode } from '@/types'
+import { TIER_CYCLE, PING_INTERVAL_MS } from '@/constants'
 import { ProviderFilter } from '@/components/Filters/ProviderFilter'
 import { ConfiguredToggle } from '@/components/Filters/ConfiguredToggle'
 import { Button } from '@/components/ui/button'
@@ -13,24 +12,41 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Search, SignalHigh, SignalMedium, SignalLow, Signal } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+
+function truncateKey(key: string | undefined, len = 8): string {
+  if (!key) return 'Not set'
+  if (key.length <= len) return key
+  return key.slice(0, len) + '...'
+}
+
+function copyKey(key: string | undefined, setOpen: (b: boolean) => void) {
+  if (key) {
+    navigator.clipboard.writeText(key)
+    toast.success('API key copied to clipboard')
+  } else {
+    setOpen(true)
+  }
+}
 
 export function Header() {
   const {
-    pingMode,
-    setPingMode,
+    refreshSpeed,
+    setRefreshSpeed,
     tierFilter,
     setTierFilter,
     activeProfile,
     visibleResults,
     lastPingTime,
-    pingInterval,
     settingsOpen,
     setSettingsOpen,
     helpOpen,
     setHelpOpen,
-    recommendOpen,
+  apiDocsOpen,
+  setApiDocsOpen,
+  recommendOpen,
     setRecommendOpen,
     featureOpen,
     setFeatureOpen,
@@ -42,6 +58,7 @@ export function Header() {
     setChatOpen,
     searchQuery,
     setSearchQuery,
+    config,
   } = useApp()
 
   const [secondsUntilNext, setSecondsUntilNext] = useState<string>('--')
@@ -50,21 +67,18 @@ export function Header() {
     const updateCountdown = () => {
       const now = Date.now()
       const timeSinceLastPing = now - lastPingTime
-      const remaining = Math.max(0, (pingInterval - timeSinceLastPing) / 1000)
+      const remaining = Math.max(0, (PING_INTERVAL_MS - timeSinceLastPing) / 1000)
       const formatted = remaining.toFixed(1)
-      // Pad to 4 characters (e.g., "09.9" instead of "9.9") to prevent layout shifts
       const padded = formatted.padStart(4, '0')
       setSecondsUntilNext(padded)
     }
 
-    // Update immediately
     updateCountdown()
 
-    // Then update every second
     const timer = setInterval(updateCountdown, 1000)
 
     return () => clearInterval(timer)
-  }, [lastPingTime, pingInterval])
+  }, [lastPingTime])
 
   return (
     <div className="border-b border-zinc-800 bg-zinc-950 px-4 py-3">
@@ -85,6 +99,16 @@ export function Header() {
               className="pl-9 h-8 w-[200px] bg-zinc-800 border-zinc-700"
             />
           </div>
+
+          {/* API Key Indicator */}
+          <button
+            onClick={() => copyKey(config.fcmProxyKey, setSettingsOpen)}
+            className="flex items-center gap-2 text-xs hover:bg-zinc-800 px-2 py-1 rounded transition-colors"
+            title={config.fcmProxyKey ? 'Click to copy API key' : 'Click to set in Settings'}
+          >
+            <span className="text-zinc-400">API:</span>
+            <code className="font-mono text-zinc-300">{truncateKey(config.fcmProxyKey)}</code>
+          </button>
 
           {/* Tier Filter Dropdown */}
           <DropdownMenu>
@@ -133,53 +157,31 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Ping Mode Dropdown */}
+          {/* Speed Dropdown - UI Refresh Rate */}
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 h-8 px-3">
               <span className="flex items-center gap-2">
-                {(() => {
-                  const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
-                    speed: { Icon: Signal, color: 'text-green-400', label: 'Speed' },
-                    normal: { Icon: SignalHigh, color: 'text-zinc-300', label: 'Normal' },
-                    slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
-                    forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
-                  }
-                  const { Icon, color, label } = pingModeInfo[pingMode]
-                  return (
-                    <>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                      <span>{label}</span>
-                    </>
-                  )
-                })()}
+                ⚡
+                <span>{refreshSpeed <= 200 ? 'Fast' : refreshSpeed <= 500 ? 'Normal' : 'Slow'}</span>
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {(['speed', 'normal', 'slow', 'forced'] as Array<PingMode>).map(mode => {
-                const pingModeInfo: Record<PingMode, { Icon: any; color: string; label: string }> = {
-                  speed: { Icon: Signal, color: 'text-green-400', label: 'Speed' },
-                  normal: { Icon: SignalHigh, color: 'text-zinc-300', label: 'Normal' },
-                  slow: { Icon: SignalMedium, color: 'text-yellow-400', label: 'Slow' },
-                  forced: { Icon: SignalLow, color: 'text-red-400', label: 'Forced' }
-                }
-                const { Icon, color, label } = pingModeInfo[mode]
-                return (
-                  <DropdownMenuItem
-                    key={mode}
-                    onClick={() => setPingMode(mode)}
-                    className={pingMode === mode ? 'bg-zinc-800' : ''}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Icon className={`w-4 h-4 ${color}`} />
-                      <span>{label}</span>
-                    </span>
-                  </DropdownMenuItem>
-                )
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenuItem onClick={() => setRefreshSpeed(100)} className={refreshSpeed === 100 ? 'bg-zinc-800' : ''}>
+                ⚡ Fast (100ms)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRefreshSpeed(300)} className={refreshSpeed === 300 ? 'bg-zinc-800' : ''}>
+                🚀 Normal (300ms)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRefreshSpeed(500)} className={refreshSpeed === 500 ? 'bg-zinc-800' : ''}>
+                🐢 Slow (500ms)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRefreshSpeed(1000)} className={refreshSpeed === 1000 ? 'bg-zinc-800' : ''}>
+                💤 Very Slow (1000ms)
+              </DropdownMenuItem>
+</DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* Ping Status */}
+        {/* Ping Status */}
           <div className="text-sm text-zinc-400 flex items-center gap-2">
             <span>
               {visibleResults.filter(r => r.status !== 'pending').length}/{visibleResults.length}
@@ -207,16 +209,26 @@ export function Header() {
             ⚙ Settings
           </Button>
 
-          {/* Help Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setHelpOpen(!helpOpen)}
-            className="h-8"
-          >
-            ❓ Help
-          </Button>
-        </div>
+{/* Help Button */}
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => setHelpOpen(!helpOpen)}
+    className="h-8"
+  >
+    ❓ Help
+  </Button>
+
+  {/* API Docs Button */}
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => setApiDocsOpen(true)}
+    className="h-8"
+  >
+    📖 API
+  </Button>
+</div>
       </div>
     </div>
   )
