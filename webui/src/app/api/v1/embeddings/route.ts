@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readConfig } from '@/lib/config'
 import { sources } from '@/lib/sources'
+import { getApiKeyForProvider } from '@/lib/key-rotation'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { appendFile } from 'node:fs/promises'
@@ -117,13 +118,13 @@ export async function POST(request: NextRequest) {
 function findEmbeddingProvider(config: any) {
   // Priority: OpenAI > Cohere > others with embedding support
   const priorityProviders = ['openai', 'cohere']
-  
+
   for (const providerKey of priorityProviders) {
-    const apiKey = config.apiKeys?.[providerKey]
+    const apiKey = getApiKeyForProvider(providerKey, config.apiKeys)
     if (apiKey && EMBEDDING_ENDPOINTS[providerKey]) {
       return {
         providerKey,
-        apiKey: Array.isArray(apiKey) ? apiKey[0] : apiKey,
+        apiKey,
         endpoint: EMBEDDING_ENDPOINTS[providerKey],
       }
     }

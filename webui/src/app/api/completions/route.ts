@@ -3,6 +3,7 @@ import { readConfig } from '@/lib/config'
 import { sources } from '@/lib/sources'
 import { MODELS } from '@/lib/sources'
 import { getAvg, getStabilityScore, getUptime, filterByTier } from '@/lib/utils'
+import { getApiKeyForProvider } from '@/lib/key-rotation'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { appendFile } from 'node:fs/promises'
@@ -220,9 +221,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No suitable model available for selection' }, { status: 503 })
     }
 
-    // Proxy the request
-    const apiKey = Array.isArray(selected.apiKey) ? selected.apiKey[0] : selected.apiKey
-    return proxyRequest(selected.providerKey, selected.modelId, apiKey, body)
+// Proxy the request
+  const apiKey = getApiKeyForProvider(selected.providerKey, config.apiKeys)
+  if (!apiKey) {
+    return NextResponse.json({ error: `No API key available for provider ${selected.providerKey}` }, { status: 500 })
+  }
+  return proxyRequest(selected.providerKey, selected.modelId, apiKey, body)
   } catch (error) {
     console.error('Completions error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

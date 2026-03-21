@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readConfig } from '@/lib/config'
 import { sources } from '@/lib/sources'
+import { getApiKeyForProvider } from '@/lib/key-rotation'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { appendFile } from 'node:fs/promises'
@@ -95,7 +96,12 @@ export async function POST(request: NextRequest) {
       }, { status: 503 })
     }
 
-    const apiKey = Array.isArray(selected.apiKey) ? selected.apiKey[0] : selected.apiKey
+    const apiKey = getApiKeyForProvider(selected.providerKey, config.apiKeys)
+    if (!apiKey) {
+      return NextResponse.json({ 
+        error: { message: `No API key available for provider ${selected.providerKey}`, type: 'server_error', code: 'no_api_key' }
+      }, { status: 500 })
+    }
 
     if (stream) {
       return handleStreaming(selected.providerKey, selected.modelId, apiKey, body)

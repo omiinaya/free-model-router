@@ -32,6 +32,10 @@
 - 🚫 **Removed tool integrations** - No more OpenCode, OpenClaw, Crush, Goose launcher buttons. WebUI now focuses exclusively on API serving.
 - 🌐 **LAN binding** - WebUI now binds to 0.0.0.0:9191 for LAN access.
 
+### Added
+
+- 🔄 **Multi-key rotation/load balancing** - Support multiple API keys per provider with round-robin distribution to avoid rate limits. Configure multiple NVIDIA, OpenRouter, etc. keys as arrays in config.
+
 ---
 
 ## 0.2.2

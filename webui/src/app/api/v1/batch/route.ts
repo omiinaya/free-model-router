@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readConfig } from '@/lib/config'
 import { sources } from '@/lib/sources'
+import { getApiKeyForProvider } from '@/lib/key-rotation'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { appendFile } from 'node:fs/promises'
@@ -109,8 +110,17 @@ async function processRequest(req: any, config: any) {
       }
     }
 
-    const apiKey = Array.isArray(selected.apiKey) ? selected.apiKey[0] : selected.apiKey
-    
+const apiKey = getApiKeyForProvider(selected.providerKey, config.apiKeys)
+    if (!apiKey) {
+      return {
+        request_id: requestId,
+        response: {
+          status: 'failed',
+          error: { message: `No API key available for provider ${selected.providerKey}`, type: 'server_error', code: 'no_api_key' }
+        }
+      }
+    }
+
     // Make the actual API call
     const src = sources[selected.providerKey]
     const headers: Record<string, string> = {
