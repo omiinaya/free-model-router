@@ -128,7 +128,12 @@ function selectBestModel(candidates: any[], config: any): any | null {
   const scored = candidates
     .filter(m => m.apiKey && !m.hidden)
     .map(m => ({ ...m, score: computeModelScore(m, config) }))
-  scored.sort((a, b) => b.score - a.score)
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    if (b.sweScore !== a.sweScore) return b.sweScore - a.sweScore
+    const tierOrder: Record<string, number> = { 'S+': 8, 'S': 7, 'A+': 6, 'A': 5, 'A-': 4, 'B+': 3, 'B': 2, 'C': 1 }
+    return (tierOrder[b.tier] || 0) - (tierOrder[a.tier] || 0)
+  })
   return scored[0] || null
 }
 
